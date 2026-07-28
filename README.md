@@ -20,6 +20,19 @@ npm run dev
 
 Сборка: `npm run build` (base path `/litcom52/` для Pages).
 
+## Синхронизация каталога из МойСклад
+
+1. Скопируйте `.env.example` в `.env` и укажите доступ:
+   - либо `MOYSKLAD_TOKEN`,
+   - либо `MOYSKLAD_LOGIN` + `MOYSKLAD_PASSWORD`.
+2. Запустите:
+
+```bash
+npm run sync:moysklad
+```
+
+Скрипт обновляет `src/data/catalog.json` данными категорий и остатков из МойСклад.
+
 ## Страницы
 
 - `/` — главная

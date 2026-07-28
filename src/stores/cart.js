@@ -13,10 +13,26 @@ function loadCart() {
   }
 }
 
+function normalizeStarterSet(rawStarterSet) {
+  if (!Array.isArray(rawStarterSet)) return rawStarterSet
+  return {
+    title: 'Стартовый набор',
+    description: 'Быстрое добавление базового комплекта в корзину.',
+    note: 'Набор автоматически учитывает текущие остатки.',
+    alternatives: [['"Базовый текст" в твёрдой обложке', '"Базовый текст" в мягкой обложке']],
+    items: rawStarterSet,
+  }
+}
+
+const normalizedCatalog = {
+  ...catalog,
+  starterSet: normalizeStarterSet(catalog.starterSet),
+}
+
 const productIndex = new Map()
-for (const category of catalog.categories) {
+for (const category of normalizedCatalog.categories) {
   for (const product of category.products) {
-    productIndex.set(product.id, { ...product, category: category.category })
+    productIndex.set(String(product.id), { ...product, category: category.category })
     productIndex.set(product.name, { ...product, category: category.category })
   }
 }
@@ -36,7 +52,7 @@ export const useCartStore = defineStore('cart', () => {
   const lines = computed(() =>
     Object.entries(quantities.value)
       .map(([id, qty]) => {
-        const product = productIndex.get(Number(id))
+        const product = productIndex.get(String(id))
         if (!product || qty <= 0) return null
         return {
           ...product,
@@ -51,20 +67,21 @@ export const useCartStore = defineStore('cart', () => {
   const count = computed(() => lines.value.reduce((sum, line) => sum + line.qty, 0))
 
   function getQty(id) {
-    return quantities.value[id] || 0
+    return quantities.value[String(id)] || 0
   }
 
   function setQty(id, qty) {
-    const product = productIndex.get(Number(id))
+    const key = String(id)
+    const product = productIndex.get(key)
     if (!product) return
     const next = Math.max(0, Math.min(product.stock, Math.floor(Number(qty) || 0)))
     if (next === 0) {
       const copy = { ...quantities.value }
-      delete copy[id]
+      delete copy[key]
       quantities.value = copy
       return
     }
-    quantities.value = { ...quantities.value, [id]: next }
+    quantities.value = { ...quantities.value, [key]: next }
   }
 
   function changeQty(id, delta) {
@@ -102,7 +119,7 @@ export const useCartStore = defineStore('cart', () => {
 
   function addStarterSet() {
     const result = { partial: [], skipped: [] }
-    const [hard, soft] = catalog.starterSet.alternatives[0]
+    const [hard, soft] = normalizedCatalog.starterSet.alternatives[0]
     const hardProduct = productIndex.get(hard)
     const softProduct = productIndex.get(soft)
     const pick =
@@ -115,7 +132,7 @@ export const useCartStore = defineStore('cart', () => {
     if (pick) addByName(pick, 1, result)
     else result.skipped.push('«Базовый текст» в любой обложке')
 
-    for (const item of catalog.starterSet.items) {
+    for (const item of normalizedCatalog.starterSet.items) {
       addByName(item.name, item.qty, result)
     }
 
@@ -130,7 +147,7 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   return {
-    catalog,
+    catalog: normalizedCatalog,
     quantities,
     lines,
     total,
