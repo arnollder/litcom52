@@ -2,11 +2,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
-import { fetchCounterpartiesFromMoySklad } from '../services/moysklad'
+import { fetchCounterpartiesFromMoySklad, reserveOrderInMoySklad } from '../services/moysklad'
 
 const cart = useCartStore()
 const router = useRouter()
 const submitted = ref(false)
+const isSubmitting = ref(false)
+const submitError = ref('')
+const reservedOrder = ref(null)
 
 const counterparties = ref([])
 const isCounterpartiesLoading = ref(false)
@@ -19,11 +22,17 @@ const selectedCounterparty = computed(
   () => counterparties.value.find((item) => item.id === selectedCounterpartyId.value) || null,
 )
 
-const canSubmit = computed(() => cart.count > 0 && selectedCounterparty.value)
+const canSubmit = computed(
+  () => cart.count > 0 && selectedCounterparty.value && !isSubmitting.value,
+)
 
-function submit() {
+async function submit() {
   if (!canSubmit.value) return
-  const order = {
+
+  isSubmitting.value = true
+  submitError.value = ''
+
+  const orderSnapshot = {
     createdAt: new Date().toISOString(),
     customer: {
       contact: selectedCounterparty.value?.contact || '',
@@ -34,12 +43,31 @@ function submit() {
           }
         : null,
     },
-    items: cart.lines,
+    items: cart.lines.map((line) => ({ ...line })),
     total: cart.total,
   }
-  localStorage.setItem('litcom52-last-order', JSON.stringify(order))
-  cart.clear()
-  submitted.value = true
+
+  try {
+    const moySkladOrder = await reserveOrderInMoySklad({
+      counterpartyId: selectedCounterparty.value.id,
+      items: orderSnapshot.items,
+      comment: `Заказ с витрины Литком-ЕКБ · ${selectedCounterparty.value.name}`,
+    })
+
+    reservedOrder.value = moySkladOrder
+    const order = {
+      ...orderSnapshot,
+      moySklad: moySkladOrder,
+    }
+    localStorage.setItem('litcom52-last-order', JSON.stringify(order))
+    cart.clear()
+    submitted.value = true
+  } catch (error) {
+    submitError.value =
+      error instanceof Error ? error.message : 'Не удалось зарезервировать заказ в МойСклад.'
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function backToShop() {
@@ -74,10 +102,14 @@ onMounted(loadCounterparties)
     <template v-if="submitted">
       <div class="success reveal">
         <p class="eyebrow">Готово</p>
-        <h1 class="display">Заказ сохранён локально</h1>
+        <h1 class="display">Заказ зарезервирован в МойСклад</h1>
         <p class="muted">
-          Это фронтенд-демо: данные записаны в браузер. В боевой версии заказ уйдёт
-          оператору литкома. Ожидайте подтверждения во второй или четвёртый вторник.
+          Позиции заказа поставлены в резерв. Ожидайте подтверждения во второй или четвёртый
+          вторник.
+        </p>
+        <p v-if="reservedOrder?.name" class="hint muted">
+          Документ: {{ reservedOrder.name }}
+          <template v-if="reservedOrder.id"> · id {{ reservedOrder.id }}</template>
         </p>
         <div class="actions">
           <RouterLink class="btn btn-primary" to="/shop">Вернуться в каталог</RouterLink>
@@ -161,10 +193,12 @@ onMounted(loadCounterparties)
             </p>
           </div>
           <button class="btn btn-primary btn-block" type="submit" :disabled="!canSubmit">
-            Отправить заказ
+            {{ isSubmitting ? 'Резервируем…' : 'Отправить заказ' }}
           </button>
+          <p v-if="submitError" class="hint error">{{ submitError }}</p>
           <p class="hint muted">
-            Подтверждение и реквизиты — в чате литкома после обработки оператором.
+            При отправке позиции резервируются в МойСклад. Подтверждение и реквизиты — в чате
+            литкома.
           </p>
         </form>
       </div>

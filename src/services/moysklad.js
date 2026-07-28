@@ -24,3 +24,46 @@ export async function fetchCounterpartiesFromMoySklad() {
     warning: payload?.source === 'mock' ? 'Используется тестовый список контрагентов.' : '',
   }
 }
+
+function getOrderApiUrl() {
+  const configured = import.meta.env.VITE_ORDER_API_URL
+  if (configured) return configured.replace(/\/+$/, '') + '/api/orders/reserve'
+  return '/api/orders/reserve'
+}
+
+/**
+ * Creates a MoySklad customer order and reserves cart lines.
+ * @param {{ counterpartyId: string, items: Array<{ id: string|number, qty: number, price: number, name: string }>, comment?: string }} payload
+ */
+export async function reserveOrderInMoySklad(payload) {
+  const response = await fetch(getOrderApiUrl(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json;charset=utf-8',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      counterpartyId: payload.counterpartyId,
+      comment: payload.comment,
+      items: (payload.items || []).map((item) => ({
+        id: String(item.id),
+        qty: Number(item.qty),
+        price: Number(item.price),
+        name: item.name,
+      })),
+    }),
+  })
+
+  let data = null
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || `Не удалось зарезервировать заказ (${response.status})`)
+  }
+
+  return data.order
+}
