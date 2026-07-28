@@ -1,26 +1,10 @@
 {
-  "updatedAt": "2026-07-28T14:02:25.014Z",
+  "updatedAt": "2026-07-28T18:07:32.025Z",
   "source": "moysklad",
   "rows": [
     {
-      "id": "ba1d554e-8d5b-11ef-0a80-130800166236",
-      "name": "3-1-3 (Дзержинск)",
-      "phone": "",
-      "email": "",
-      "contact": "",
-      "description": ""
-    },
-    {
       "id": "4a8c7a14-26e8-11ed-0a80-068d00241008",
       "name": "Антей",
-      "phone": "",
-      "email": "",
-      "contact": "",
-      "description": ""
-    },
-    {
-      "id": "034c224d-8d5c-11ef-0a80-1578001604f6",
-      "name": "Атом (Саров)",
       "phone": "",
       "email": "",
       "contact": "",
@@ -173,22 +157,6 @@
     {
       "id": "fa8f4583-653f-11f0-0a80-1981001d3246",
       "name": "Сенная",
-      "phone": "",
-      "email": "",
-      "contact": "",
-      "description": ""
-    },
-    {
-      "id": "53ed1581-8d5c-11ef-0a80-1497001655f4",
-      "name": "Союз",
-      "phone": "",
-      "email": "",
-      "contact": "",
-      "description": ""
-    },
-    {
-      "id": "5e723358-ea83-11ed-0a80-0ca1003680f6",
-      "name": "ТайNA",
       "phone": "",
       "email": "",
       "contact": "",
