@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "sync:moysklad": "node ./scripts/sync-moysklad-catalog.mjs"
+    "sync:moysklad": "node ./scripts/sync-moysklad-catalog.mjs",
+    "sync:moysklad:counterparties": "node ./scripts/sync-moysklad-counterparties.mjs",
+    "sync:moysklad:all": "npm run sync:moysklad && npm run sync:moysklad:counterparties"
   },
   "dependencies": {
     "pinia": "^4.0.2",

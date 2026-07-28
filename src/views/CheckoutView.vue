@@ -1,28 +1,39 @@
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
+import { fetchCounterpartiesFromMoySklad } from '../services/moysklad'
 
 const cart = useCartStore()
 const router = useRouter()
 const submitted = ref(false)
 
-const form = reactive({
-  name: '',
-  contact: '',
-  group: '',
-  comment: '',
-})
+const counterparties = ref([])
+const isCounterpartiesLoading = ref(false)
+const counterpartiesError = ref('')
+const counterpartiesWarning = ref('')
+const selectedCounterpartyId = ref('')
+const counterpartiesDropdownOpen = ref(false)
 
-const canSubmit = computed(
-  () => cart.count > 0 && form.name.trim() && form.contact.trim(),
+const selectedCounterparty = computed(
+  () => counterparties.value.find((item) => item.id === selectedCounterpartyId.value) || null,
 )
+
+const canSubmit = computed(() => cart.count > 0 && selectedCounterparty.value)
 
 function submit() {
   if (!canSubmit.value) return
   const order = {
     createdAt: new Date().toISOString(),
-    customer: { ...form },
+    customer: {
+      contact: selectedCounterparty.value?.contact || '',
+      counterparty: selectedCounterparty.value
+        ? {
+            id: selectedCounterparty.value.id,
+            name: selectedCounterparty.value.name,
+          }
+        : null,
+    },
     items: cart.lines,
     total: cart.total,
   }
@@ -34,6 +45,28 @@ function submit() {
 function backToShop() {
   router.push('/shop')
 }
+
+function selectCounterparty(id) {
+  selectedCounterpartyId.value = id
+  counterpartiesDropdownOpen.value = false
+}
+
+async function loadCounterparties() {
+  isCounterpartiesLoading.value = true
+  counterpartiesError.value = ''
+  counterpartiesWarning.value = ''
+  try {
+    const { rows, warning } = await fetchCounterpartiesFromMoySklad()
+    counterparties.value = rows
+    counterpartiesWarning.value = warning
+  } catch (error) {
+    counterpartiesError.value = error instanceof Error ? error.message : 'Не удалось загрузить контрагентов.'
+  } finally {
+    isCounterpartiesLoading.value = false
+  }
+}
+
+onMounted(loadCounterparties)
 </script>
 
 <template>
@@ -87,22 +120,46 @@ function backToShop() {
 
         <form class="panel reveal reveal-delay-1" @submit.prevent="submit">
           <h2>Контакты</h2>
-          <label>
-            Имя / ник в чате
-            <input v-model="form.name" required autocomplete="name" />
-          </label>
-          <label>
-            Telegram или телефон
-            <input v-model="form.contact" required autocomplete="tel" />
-          </label>
-          <label>
-            Группа (необязательно)
-            <input v-model="form.group" />
-          </label>
-          <label>
-            Комментарий
-            <textarea v-model="form.comment" rows="3" />
-          </label>
+          <div class="counterparty-group">
+            <details
+              class="counterparty-dropdown"
+              :open="counterpartiesDropdownOpen"
+              @toggle="counterpartiesDropdownOpen = $event.target.open"
+            >
+              <summary>
+                {{ selectedCounterparty ? selectedCounterparty.name : 'Выберите контрагента' }}
+              </summary>
+              <div class="counterparty-list">
+                <p v-if="isCounterpartiesLoading" class="hint muted">Загружаем контрагентов...</p>
+                <p v-else-if="counterpartiesError" class="hint error">{{ counterpartiesError }}</p>
+                <p v-else-if="counterpartiesWarning" class="hint muted">{{ counterpartiesWarning }}</p>
+                <p v-else-if="!counterparties.length" class="hint muted">Список контрагентов пуст.</p>
+                <label
+                  v-for="counterparty in counterparties"
+                  :key="counterparty.id"
+                  class="counterparty-option"
+                >
+                  <input
+                    type="radio"
+                    name="counterparty"
+                    :value="counterparty.id"
+                    :checked="counterparty.id === selectedCounterpartyId"
+                    @change="selectCounterparty(counterparty.id)"
+                  />
+                  <span>
+                    <strong>{{ counterparty.name }}</strong>
+                    <small class="muted">{{ counterparty.description || 'Контакт не указан' }}</small>
+                  </span>
+                </label>
+              </div>
+            </details>
+            <p v-if="selectedCounterparty?.contact" class="hint muted">
+              Контакт: {{ selectedCounterparty.contact }}
+            </p>
+            <p v-else-if="selectedCounterparty" class="hint muted">
+              У выбранного контрагента не заполнен контакт (телефон/email).
+            </p>
+          </div>
           <button class="btn btn-primary btn-block" type="submit" :disabled="!canSubmit">
             Отправить заказ
           </button>
@@ -226,6 +283,58 @@ textarea:focus {
 .hint {
   margin: 0;
   font-size: 0.88rem;
+}
+
+.error {
+  color: #ff9a9a;
+}
+
+.counterparty-dropdown {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.counterparty-dropdown summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.8rem 0.9rem;
+}
+
+.counterparty-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.counterparty-list {
+  border-top: 1px solid var(--line);
+  max-height: 260px;
+  overflow: auto;
+  padding: 0.5rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.counterparty-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  border: 1px solid rgba(62, 207, 142, 0.12);
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+}
+
+.counterparty-option input {
+  width: auto;
+  margin-top: 0.18rem;
+}
+
+.counterparty-option strong {
+  display: block;
+}
+
+.counterparty-option small {
+  display: block;
 }
 
 .actions {
