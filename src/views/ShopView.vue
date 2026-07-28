@@ -7,17 +7,18 @@ import QtyControl from '../components/QtyControl.vue'
 const cart = useCartStore()
 const query = ref('')
 const openCategories = ref(
-  Object.fromEntries(cart.catalog.categories.map((c) => [c.category, true])),
+  Object.fromEntries(cart.catalog.categories.map((c) => [c.category, false])),
 )
 const setsOpen = ref(true)
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
-  if (!q) return cart.catalog.categories
   return cart.catalog.categories
     .map((cat) => ({
       ...cat,
-      products: cat.products.filter((p) => p.name.toLowerCase().includes(q)),
+      products: cat.products.filter(
+        (p) => p.stock > 0 && (!q || p.name.toLowerCase().includes(q)),
+      ),
     }))
     .filter((cat) => cat.products.length)
 })
