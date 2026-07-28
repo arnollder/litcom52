@@ -65,11 +65,17 @@ function parseStock(item) {
   return Math.max(0, Math.floor(raw))
 }
 
+function stripCategoryNumber(name) {
+  return String(name || '')
+    .replace(/^\d+[\s.\-–—_]*/u, '')
+    .trim() || String(name || '').trim()
+}
+
 function categoryNameFromItem(item, categoryByHref) {
   const href = item.productFolder?.meta?.href
-  if (href && categoryByHref.has(href)) return categoryByHref.get(href)
+  if (href && categoryByHref.has(href)) return stripCategoryNumber(categoryByHref.get(href))
   if (typeof item.pathName === 'string' && item.pathName.trim()) {
-    return item.pathName.split('/')[0].trim()
+    return stripCategoryNumber(item.pathName.split('/')[0].trim())
   }
   return 'Без категории'
 }
@@ -122,7 +128,7 @@ function buildCatalog(categories, assortment, existingCatalog) {
   const categoryByHref = new Map(
     categories
       .filter((row) => row?.meta?.href && row?.name)
-      .map((row) => [row.meta.href, row.name]),
+      .map((row) => [row.meta.href, stripCategoryNumber(row.name)]),
   )
 
   const grouped = new Map()

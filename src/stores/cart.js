@@ -13,6 +13,12 @@ function loadCart() {
   }
 }
 
+function stripCategoryNumber(name) {
+  return String(name || '')
+    .replace(/^\d+[\s.\-–—_]*/u, '')
+    .trim() || String(name || '').trim()
+}
+
 function normalizeStarterSet(rawStarterSet) {
   if (!Array.isArray(rawStarterSet)) return rawStarterSet
   return {
@@ -26,6 +32,10 @@ function normalizeStarterSet(rawStarterSet) {
 
 const normalizedCatalog = {
   ...catalog,
+  categories: catalog.categories.map((cat) => ({
+    ...cat,
+    category: stripCategoryNumber(cat.category),
+  })),
   starterSet: normalizeStarterSet(catalog.starterSet),
 }
 
