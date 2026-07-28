@@ -45,6 +45,19 @@ npm run sync:moysklad:counterparties
 
 На чистом GitHub Pages без backend endpoint резерв не выполнится — для продакшена укажите `VITE_ORDER_API_URL` на ваш API с тем же маршрутом `/api/orders/reserve`.
 
+## Live-остатки из МойСклад
+
+На `/shop` остатки подтягиваются динамически:
+
+- при открытии каталога;
+- каждые 60 секунд;
+- по кнопке **«Обновить остатки»**;
+- сразу после успешного резерва заказа.
+
+Endpoint: `GET /api/stock` (свободный остаток = stock − reserve).
+
+Работает при `npm run dev` / `npm run preview`. На GitHub Pages без API будут показаны остатки из `catalog.json`.
+
 ## Синхронизация каталога из МойСклад
 
 1. Скопируйте `.env.example` в `.env` и укажите доступ:

@@ -1,8 +1,10 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import QtyControl from '../components/QtyControl.vue'
+
+const POLL_MS = 60_000
 
 const cart = useCartStore()
 const query = ref('')
@@ -23,6 +25,16 @@ const filtered = computed(() => {
     .filter((cat) => cat.products.length)
 })
 
+const stockHint = computed(() => {
+  if (cart.stockStatus.loading) return 'Обновляем остатки из МойСклад…'
+  if (cart.stockStatus.error) return `Остатки из файла (live недоступен): ${cart.stockStatus.error}`
+  if (cart.stockStatus.live && cart.stockStatus.updatedAt) {
+    const time = new Date(cart.stockStatus.updatedAt).toLocaleTimeString('ru-RU')
+    return `Остатки live из МойСклад · обновлено ${time}`
+  }
+  return 'Остатки из последней выгрузки. Запустите npm run dev для live-обновления.'
+})
+
 function lineSum(product) {
   const qty = cart.getQty(product.id)
   return qty > 0 ? `${qty} (${(qty * product.price).toLocaleString('ru-RU')} ₽)` : '—'
@@ -31,6 +43,25 @@ function lineSum(product) {
 function formatPrice(price) {
   return `${price.toLocaleString('ru-RU')} ₽`
 }
+
+async function refreshStockQuiet() {
+  try {
+    await cart.refreshStock()
+  } catch {
+    // Keep static catalog fallback; error shown via stockStatus.
+  }
+}
+
+let pollTimer = null
+
+onMounted(() => {
+  refreshStockQuiet()
+  pollTimer = window.setInterval(refreshStockQuiet, POLL_MS)
+})
+
+onUnmounted(() => {
+  if (pollTimer) window.clearInterval(pollTimer)
+})
 </script>
 
 <template>
@@ -40,14 +71,27 @@ function formatPrice(price) {
         <p class="eyebrow">Витрина</p>
         <h1 class="display">Каталог литературы</h1>
         <p class="muted">
-          Остатки актуальные на момент выгрузки. Описания и фото —
-          <a href="https://lit-na.ru/" target="_blank" rel="noreferrer">lit-na.ru</a>.
+          {{ stockHint }}
+        </p>
+        <p class="muted shop__meta">
+          Описания и фото —
+          <a href="https://lit-na.ru/" target="_blank" rel="noreferrer">lit-na.ru</a>
         </p>
       </div>
-      <label class="search">
-        <span class="sr-only">Поиск</span>
-        <input v-model="query" type="search" placeholder="Найти позицию…" />
-      </label>
+      <div class="shop__tools">
+        <button
+          class="btn btn-ghost"
+          type="button"
+          :disabled="cart.stockStatus.loading"
+          @click="refreshStockQuiet"
+        >
+          {{ cart.stockStatus.loading ? 'Обновляем…' : 'Обновить остатки' }}
+        </button>
+        <label class="search">
+          <span class="sr-only">Поиск</span>
+          <input v-model="query" type="search" placeholder="Найти позицию…" />
+        </label>
+      </div>
     </header>
 
     <!-- Стартовый набор временно скрыли -->
@@ -151,6 +195,17 @@ function formatPrice(price) {
 .shop__head p {
   margin: 0;
   max-width: 36rem;
+}
+
+.shop__meta {
+  margin-top: 0.35rem !important;
+}
+
+.shop__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .search input {

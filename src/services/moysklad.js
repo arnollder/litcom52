@@ -1,3 +1,9 @@
+function getApiBase() {
+  const configured = import.meta.env.VITE_ORDER_API_URL
+  if (configured) return configured.replace(/\/+$/, '')
+  return ''
+}
+
 export async function fetchCounterpartiesFromMoySklad() {
   const url = new URL(`${import.meta.env.BASE_URL}counterparties.json`, window.location.origin)
   const response = await fetch(url.toString(), {
@@ -25,18 +31,12 @@ export async function fetchCounterpartiesFromMoySklad() {
   }
 }
 
-function getOrderApiUrl() {
-  const configured = import.meta.env.VITE_ORDER_API_URL
-  if (configured) return configured.replace(/\/+$/, '') + '/api/orders/reserve'
-  return '/api/orders/reserve'
-}
-
 /**
  * Creates a MoySklad customer order and reserves cart lines.
  * @param {{ counterpartyId: string, items: Array<{ id: string|number, qty: number, price: number, name: string }>, comment?: string }} payload
  */
 export async function reserveOrderInMoySklad(payload) {
-  const response = await fetch(getOrderApiUrl(), {
+  const response = await fetch(`${getApiBase()}/api/orders/reserve`, {
     method: 'POST',
     headers: {
       Accept: 'application/json;charset=utf-8',
@@ -66,4 +66,34 @@ export async function reserveOrderInMoySklad(payload) {
   }
 
   return data.order
+}
+
+/**
+ * Fetches live free stock map from MoySklad via local/API middleware.
+ */
+export async function fetchLiveStock() {
+  const response = await fetch(`${getApiBase()}/api/stock`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json;charset=utf-8',
+    },
+    cache: 'no-store',
+  })
+
+  let data = null
+  try {
+    data = await response.json()
+  } catch {
+    data = null
+  }
+
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || `Не удалось загрузить остатки (${response.status})`)
+  }
+
+  return {
+    updatedAt: data.updatedAt,
+    stockById: data.stockById || {},
+    count: data.count || 0,
+  }
 }

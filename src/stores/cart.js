@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import catalog from '../data/catalog.json'
+import { fetchLiveStock } from '../services/moysklad'
 
 const STORAGE_KEY = 'litcom52-cart'
 
@@ -30,26 +31,42 @@ function normalizeStarterSet(rawStarterSet) {
   }
 }
 
-const normalizedCatalog = {
-  ...catalog,
-  categories: catalog.categories.map((cat) => ({
-    ...cat,
-    category: stripCategoryNumber(cat.category),
-  })),
-  starterSet: normalizeStarterSet(catalog.starterSet),
+function cloneCatalog(source) {
+  return {
+    ...source,
+    categories: source.categories.map((cat) => ({
+      ...cat,
+      category: stripCategoryNumber(cat.category),
+      products: cat.products.map((product) => ({ ...product })),
+    })),
+    starterSet: normalizeStarterSet(source.starterSet),
+  }
 }
 
-const productIndex = new Map()
-for (const category of normalizedCatalog.categories) {
-  for (const product of category.products) {
-    productIndex.set(String(product.id), { ...product, category: category.category })
-    productIndex.set(product.name, { ...product, category: category.category })
+function rebuildProductIndex(catalogValue, indexMap) {
+  indexMap.clear()
+  for (const category of catalogValue.categories) {
+    for (const product of category.products) {
+      const entry = { ...product, category: category.category }
+      indexMap.set(String(product.id), entry)
+      indexMap.set(product.name, entry)
+    }
   }
 }
 
 export const useCartStore = defineStore('cart', () => {
+  const liveCatalog = ref(cloneCatalog(catalog))
+  const productIndex = new Map()
+  rebuildProductIndex(liveCatalog.value, productIndex)
+
   const quantities = ref(loadCart())
   const toast = ref(null)
+  const stockStatus = ref({
+    loading: false,
+    error: '',
+    updatedAt: null,
+    live: false,
+  })
 
   watch(
     quantities,
@@ -110,6 +127,67 @@ export const useCartStore = defineStore('cart', () => {
     }, 4200)
   }
 
+  function clampCartToStock() {
+    const next = { ...quantities.value }
+    let changed = false
+    for (const [id, qty] of Object.entries(next)) {
+      const product = productIndex.get(String(id))
+      const max = product ? product.stock : 0
+      if (!product || max <= 0) {
+        delete next[id]
+        changed = true
+        continue
+      }
+      if (qty > max) {
+        next[id] = max
+        changed = true
+      }
+    }
+    if (changed) quantities.value = next
+  }
+
+  function applyStockMap(stockById) {
+    const nextCatalog = cloneCatalog(liveCatalog.value)
+    for (const category of nextCatalog.categories) {
+      for (const product of category.products) {
+        const key = String(product.id)
+        if (Object.prototype.hasOwnProperty.call(stockById, key)) {
+          product.stock = Math.max(0, Math.floor(Number(stockById[key]) || 0))
+        }
+      }
+    }
+    liveCatalog.value = nextCatalog
+    rebuildProductIndex(liveCatalog.value, productIndex)
+    clampCartToStock()
+  }
+
+  async function refreshStock() {
+    stockStatus.value = {
+      ...stockStatus.value,
+      loading: true,
+      error: '',
+    }
+    try {
+      const payload = await fetchLiveStock()
+      applyStockMap(payload.stockById || {})
+      stockStatus.value = {
+        loading: false,
+        error: '',
+        updatedAt: payload.updatedAt || new Date().toISOString(),
+        live: true,
+      }
+      return payload
+    } catch (error) {
+      stockStatus.value = {
+        ...stockStatus.value,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Не удалось обновить остатки',
+        live: false,
+      }
+      throw error
+    }
+  }
+
   function addByName(name, requestedQty, result) {
     const product = productIndex.get(name)
     if (!product) {
@@ -129,7 +207,7 @@ export const useCartStore = defineStore('cart', () => {
 
   function addStarterSet() {
     const result = { partial: [], skipped: [] }
-    const [hard, soft] = normalizedCatalog.starterSet.alternatives[0]
+    const [hard, soft] = liveCatalog.value.starterSet.alternatives[0]
     const hardProduct = productIndex.get(hard)
     const softProduct = productIndex.get(soft)
     const pick =
@@ -142,7 +220,7 @@ export const useCartStore = defineStore('cart', () => {
     if (pick) addByName(pick, 1, result)
     else result.skipped.push('«Базовый текст» в любой обложке')
 
-    for (const item of normalizedCatalog.starterSet.items) {
+    for (const item of liveCatalog.value.starterSet.items) {
       addByName(item.name, item.qty, result)
     }
 
@@ -157,18 +235,21 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   return {
-    catalog: normalizedCatalog,
+    catalog: liveCatalog,
     quantities,
     lines,
     total,
     count,
     toast,
+    stockStatus,
     getQty,
     setQty,
     changeQty,
     clear,
     addStarterSet,
     showToast,
+    refreshStock,
+    applyStockMap,
     productIndex,
   }
 })

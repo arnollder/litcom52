@@ -62,6 +62,11 @@ async function submit() {
     localStorage.setItem('litcom52-last-order', JSON.stringify(order))
     cart.clear()
     submitted.value = true
+    try {
+      await cart.refreshStock()
+    } catch {
+      // Stock refresh is best-effort after successful reserve.
+    }
   } catch (error) {
     submitError.value =
       error instanceof Error ? error.message : 'Не удалось зарезервировать заказ в МойСклад.'
