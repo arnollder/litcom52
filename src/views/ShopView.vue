@@ -50,7 +50,8 @@ function formatPrice(price) {
       </label>
     </header>
 
-    <details class="set" :open="setsOpen" @toggle="setsOpen = $event.target.open">
+    <!-- Стартовый набор временно скрыли -->
+    <!-- <details class="set" :open="setsOpen" @toggle="setsOpen = $event.target.open">
       <summary>Наборы</summary>
       <div class="set__body">
         <h2 class="display">{{ cart.catalog.starterSet.title }}</h2>
@@ -60,7 +61,7 @@ function formatPrice(price) {
           Добавить в корзину
         </button>
       </div>
-    </details>
+    </details> -->
 
     <section
       v-for="category in filtered"
