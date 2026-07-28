@@ -61,8 +61,18 @@ function parsePrice(item) {
 }
 
 function parseStock(item) {
-  const raw = typeof item.stock === 'number' ? item.stock : 0
-  return Math.max(0, Math.floor(raw))
+  // MoySklad assortment:
+  // - stock: physical stock
+  // - reserve: reserved
+  // - quantity: free stock (stock - reserve)
+  // Catalog "в наличии" must exclude reserved units.
+  if (typeof item.quantity === 'number') {
+    return Math.max(0, Math.floor(item.quantity))
+  }
+
+  const stock = typeof item.stock === 'number' ? item.stock : 0
+  const reserve = typeof item.reserve === 'number' ? item.reserve : 0
+  return Math.max(0, Math.floor(stock - reserve))
 }
 
 function stripCategoryNumber(name) {
