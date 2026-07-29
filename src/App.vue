@@ -8,16 +8,17 @@ import CartToast from './components/CartToast.vue'
 
 const cart = useCartStore()
 const route = useRoute()
+const hideChrome = computed(() => Boolean(route.meta.hideChrome))
 const showFooterCart = computed(() => route.name === 'shop' && cart.count > 0)
 </script>
 
 <template>
-  <AppHeader />
-  <main class="page-shell">
+  <AppHeader v-if="!hideChrome" />
+  <main class="page-shell" :class="{ 'page-shell--admin': hideChrome }">
     <RouterView />
   </main>
-  <AppFooter />
-  <CartToast />
+  <AppFooter v-if="!hideChrome" />
+  <CartToast v-if="!hideChrome" />
 
   <div v-if="showFooterCart" class="sticky-cart">
     <div class="sticky-cart__inner container">
@@ -36,6 +37,10 @@ const showFooterCart = computed(() => route.name === 'shop' && cart.count > 0)
 </template>
 
 <style scoped>
+.page-shell--admin {
+  padding-bottom: 2rem;
+}
+
 .sticky-cart {
   position: fixed;
   left: 0;

@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 import InstructionsView from '../views/InstructionsView.vue'
 import ShopView from '../views/ShopView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
+import AdminView from '../views/AdminView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -25,6 +26,12 @@ const router = createRouter({
       name: 'checkout',
       component: CheckoutView,
       meta: { title: 'Оформление — Литком ЕКБ' },
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminView,
+      meta: { title: 'Админка — Литком ЕКБ', hideChrome: true },
     },
   ],
   scrollBehavior() {

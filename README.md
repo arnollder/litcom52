@@ -78,9 +78,30 @@ npm run sync:moysklad
 npm run sync:moysklad:all
 ```
 
+## Админка заказов
+
+Страница `/admin` — входящие заказы с витрины.
+
+После успешного резерва заказ сохраняется в `data/orders.json` и появляется в админке (опрос каждые 5 секунд).
+
+API:
+
+- `GET /api/admin/orders` — список заказов
+- `PATCH /api/admin/orders/:id` — сменить статус (`new` / `seen` / `done`)
+
+Доступ по токену `ADMIN_TOKEN` из `.env` (ввод на странице `/admin`, хранится в `sessionStorage`).
+
+Для продакшена на VPS:
+
+```bash
+npm run build:vps
+npm start
+```
+
 ## Страницы
 
 - `/` — главная
 - `/instructions` — инструкция
 - `/shop` — каталог и корзина
 - `/checkout` — оформление с выбором контрагента и резервом в МойСклад
+- `/admin` — админка входящих заказов

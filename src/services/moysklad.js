@@ -4,6 +4,37 @@ function getApiBase() {
   return ''
 }
 
+const TOKEN_KEY = 'litcom52-admin-token'
+
+export function getAdminToken() {
+  return sessionStorage.getItem(TOKEN_KEY) || ''
+}
+
+export function setAdminToken(token) {
+  sessionStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearAdminToken() {
+  sessionStorage.removeItem(TOKEN_KEY)
+}
+
+function adminHeaders() {
+  const token = getAdminToken()
+  return {
+    Accept: 'application/json;charset=utf-8',
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+}
+
+async function parseJson(response) {
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
 export async function fetchCounterpartiesFromMoySklad() {
   const url = new URL(`${import.meta.env.BASE_URL}counterparties.json`, window.location.origin)
   const response = await fetch(url.toString(), {
@@ -33,7 +64,14 @@ export async function fetchCounterpartiesFromMoySklad() {
 
 /**
  * Creates a MoySklad customer order and reserves cart lines.
- * @param {{ counterpartyId: string, items: Array<{ id: string|number, qty: number, price: number, name: string }>, comment?: string }} payload
+ * @param {{
+ *   counterpartyId: string,
+ *   items: Array<{ id: string|number, qty: number, price: number, name: string }>,
+ *   comment?: string,
+ *   customer?: object,
+ *   total?: number,
+ *   createdAt?: string,
+ * }} payload
  */
 export async function reserveOrderInMoySklad(payload) {
   const response = await fetch(`${getApiBase()}/api/orders/reserve`, {
@@ -45,6 +83,9 @@ export async function reserveOrderInMoySklad(payload) {
     body: JSON.stringify({
       counterpartyId: payload.counterpartyId,
       comment: payload.comment,
+      customer: payload.customer,
+      total: payload.total,
+      createdAt: payload.createdAt,
       items: (payload.items || []).map((item) => ({
         id: String(item.id),
         qty: Number(item.qty),
@@ -54,12 +95,7 @@ export async function reserveOrderInMoySklad(payload) {
     }),
   })
 
-  let data = null
-  try {
-    data = await response.json()
-  } catch {
-    data = null
-  }
+  const data = await parseJson(response)
 
   if (!response.ok || !data?.ok) {
     throw new Error(data?.error || `Не удалось зарезервировать заказ (${response.status})`)
@@ -80,12 +116,7 @@ export async function fetchLiveStock() {
     cache: 'no-store',
   })
 
-  let data = null
-  try {
-    data = await response.json()
-  } catch {
-    data = null
-  }
+  const data = await parseJson(response)
 
   if (!response.ok || !data?.ok) {
     throw new Error(data?.error || `Не удалось загрузить остатки (${response.status})`)
@@ -96,4 +127,44 @@ export async function fetchLiveStock() {
     stockById: data.stockById || {},
     count: data.count || 0,
   }
+}
+
+export async function fetchAdminOrders() {
+  const response = await fetch(`${getApiBase()}/api/admin/orders`, {
+    method: 'GET',
+    headers: adminHeaders(),
+    cache: 'no-store',
+  })
+
+  const data = await parseJson(response)
+
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось загрузить заказы (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+
+  return {
+    orders: Array.isArray(data.orders) ? data.orders : [],
+    count: data.count || 0,
+    newCount: data.newCount || 0,
+  }
+}
+
+export async function updateAdminOrderStatus(id, status) {
+  const response = await fetch(`${getApiBase()}/api/admin/orders/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: adminHeaders(),
+    body: JSON.stringify({ status }),
+  })
+
+  const data = await parseJson(response)
+
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось обновить заказ (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+
+  return data.order
 }
