@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { getBaseUrl, moyskladFetch } from './moysklad-env.mjs'
+import { buildCustomerOrderStatePayload } from './customer-order-state.mjs'
 
 function meta(type, id, baseUrl) {
   return {
@@ -90,6 +91,15 @@ export async function createReservedCustomerOrder(order) {
     positions,
   }
 
+  let stateName = null
+  try {
+    const { state, payload } = await buildCustomerOrderStatePayload('Новый')
+    Object.assign(body, payload)
+    stateName = state.name
+  } catch (error) {
+    console.error('[customer-order] failed to resolve state Новый', error)
+  }
+
   const created = await moyskladFetch('/entity/customerorder', {
     method: 'POST',
     body: JSON.stringify(body),
@@ -101,5 +111,6 @@ export async function createReservedCustomerOrder(order) {
     href: created?.meta?.href || null,
     reservedPositions: positions.length,
     sum: typeof created.sum === 'number' ? created.sum / 100 : null,
+    stateName: created?.state?.name || stateName,
   }
 }

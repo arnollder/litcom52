@@ -7,8 +7,17 @@ import { randomUUID } from 'node:crypto'
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '../..')
 const ORDERS_PATH = resolve(ROOT_DIR, 'data', 'orders.json')
 
+const ALLOWED_STATUSES = new Set(['new', 'paid', 'shipped', 'cancelled'])
+
 function emptyStore() {
   return { version: 1, orders: [] }
+}
+
+function migrateStatus(status) {
+  if (status === 'seen') return 'paid'
+  if (status === 'done') return 'shipped'
+  if (ALLOWED_STATUSES.has(status)) return status
+  return 'new'
 }
 
 async function ensureStoreFile() {
@@ -26,7 +35,13 @@ async function readStore() {
     const raw = await readFile(ORDERS_PATH, 'utf8')
     const parsed = raw ? JSON.parse(raw) : emptyStore()
     if (!Array.isArray(parsed?.orders)) return emptyStore()
-    return { version: 1, orders: parsed.orders }
+    return {
+      version: 1,
+      orders: parsed.orders.map((order) => ({
+        ...order,
+        status: migrateStatus(order.status),
+      })),
+    }
   } catch {
     return emptyStore()
   }
@@ -44,14 +59,6 @@ async function writeStore(store) {
 
 /**
  * Persist a storefront order after successful MoySklad reserve.
- * @param {{
- *   customer?: object,
- *   items?: array,
- *   total?: number,
- *   comment?: string,
- *   moySklad?: object,
- *   createdAt?: string,
- * }} input
  */
 export async function appendOrder(input) {
   const store = await readStore()
@@ -83,10 +90,20 @@ export async function listOrders({ status } = {}) {
   }
 }
 
-export async function updateOrderStatus(id, status) {
-  const allowed = new Set(['new', 'seen', 'done'])
-  if (!allowed.has(status)) {
-    const error = new Error('Некорректный статус. Допустимо: new, seen, done')
+export async function getOrderById(id) {
+  const store = await readStore()
+  return store.orders.find((order) => order.id === id) || null
+}
+
+/**
+ * @param {string} id
+ * @param {string} status
+ * @param {{ moySklad?: object }} [extra]
+ */
+export async function updateOrderStatus(id, status, extra = {}) {
+  const nextStatus = migrateStatus(status)
+  if (!ALLOWED_STATUSES.has(nextStatus)) {
+    const error = new Error('Некорректный статус. Допустимо: new, paid, shipped')
     error.status = 400
     throw error
   }
@@ -101,9 +118,33 @@ export async function updateOrderStatus(id, status) {
 
   store.orders[index] = {
     ...store.orders[index],
-    status,
+    status: nextStatus,
     updatedAt: new Date().toISOString(),
+    ...(extra.moySklad
+      ? {
+          moySklad: {
+            ...(store.orders[index].moySklad || {}),
+            ...extra.moySklad,
+          },
+        }
+      : {}),
   }
+  await writeStore(store)
+  return store.orders[index]
+}
+
+/**
+ * Replace one order document in the store.
+ */
+export async function saveOrder(order) {
+  const store = await readStore()
+  const index = store.orders.findIndex((item) => item.id === order.id)
+  if (index < 0) {
+    const error = new Error('Заказ не найден')
+    error.status = 404
+    throw error
+  }
+  store.orders[index] = order
   await writeStore(store)
   return store.orders[index]
 }

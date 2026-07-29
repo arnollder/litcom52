@@ -33,8 +33,23 @@ const filteredOrders = computed(() => {
 
 const statusLabel = {
   new: 'Новый',
-  seen: 'Просмотрен',
-  done: 'Обработан',
+  paid: 'Оплачен',
+  shipped: 'Отгружен',
+  cancelled: 'Отменен',
+}
+
+function canMarkPaid(order) {
+  return order.status === 'new'
+}
+
+function canMarkShipped(order) {
+  return Boolean(order.canShip) || order.status === 'paid'
+}
+
+function shipDisabled(order) {
+  if (isUpdating.value === order.id) return true
+  if (order.status === 'shipped') return true
+  return !canMarkShipped(order)
 }
 
 function formatMoney(value) {
@@ -236,18 +251,18 @@ onUnmounted(stopPolling)
           <button
             type="button"
             class="chip"
-            :class="{ 'chip--active': filter === 'seen' }"
-            @click="filter = 'seen'"
+            :class="{ 'chip--active': filter === 'paid' }"
+            @click="filter = 'paid'"
           >
-            Просмотренные
+            Оплаченные
           </button>
           <button
             type="button"
             class="chip"
-            :class="{ 'chip--active': filter === 'done' }"
-            @click="filter = 'done'"
+            :class="{ 'chip--active': filter === 'shipped' }"
+            @click="filter = 'shipped'"
           >
-            Обработанные
+            Отгруженные
           </button>
         </div>
         <div class="toolbar__actions">
@@ -307,46 +322,49 @@ onUnmounted(stopPolling)
           </ul>
 
           <div class="order__foot">
-            <p v-if="order.moySklad?.name" class="muted">
-              МойСклад:
-              <a
-                v-if="order.moySklad.href"
-                :href="order.moySklad.href"
-                target="_blank"
-                rel="noreferrer"
-              >
-                {{ order.moySklad.name }}
-              </a>
-              <template v-else>{{ order.moySklad.name }}</template>
-            </p>
+            <div class="order__ms">
+              <p v-if="order.moySklad?.name" class="muted">
+                МойСклад:
+                <a
+                  v-if="order.moySklad.href"
+                  :href="order.moySklad.href"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {{ order.moySklad.name }}
+                </a>
+                <template v-else>{{ order.moySklad.name }}</template>
+              </p>
+              <p v-if="order.moySklad?.stateName" class="muted">
+                Статус МС: {{ order.moySklad.stateName }}
+              </p>
+              <p v-if="order.moySkladSyncError" class="error">{{ order.moySkladSyncError }}</p>
+            </div>
             <div class="order__actions">
               <button
-                v-if="order.status === 'new'"
-                class="btn btn-ghost"
-                type="button"
-                :disabled="isUpdating === order.id"
-                @click="setStatus(order, 'seen')"
-              >
-                Просмотрен
-              </button>
-              <button
-                v-if="order.status !== 'done'"
+                v-if="canMarkPaid(order)"
                 class="btn btn-primary"
                 type="button"
                 :disabled="isUpdating === order.id"
-                @click="setStatus(order, 'done')"
+                @click="setStatus(order, 'paid')"
               >
-                Обработан
+                Оплачен
               </button>
               <button
-                v-if="order.status === 'done'"
+                v-if="order.status !== 'shipped'"
                 class="btn btn-ghost"
                 type="button"
-                :disabled="isUpdating === order.id"
-                @click="setStatus(order, 'new')"
+                :disabled="shipDisabled(order)"
+                :title="
+                  shipDisabled(order) && order.status !== 'shipped'
+                    ? 'Сначала отметьте оплату в МойСклад'
+                    : ''
+                "
+                @click="setStatus(order, 'shipped')"
               >
-                Вернуть в новые
+                Отгружен
               </button>
+              <span v-else class="muted shipped-label">Отгружен</span>
             </div>
           </div>
         </li>
@@ -484,6 +502,11 @@ onUnmounted(stopPolling)
   gap: 0.9rem;
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .order--new {
   border-color: rgba(62, 207, 142, 0.45);
   box-shadow: 0 0 0 1px rgba(62, 207, 142, 0.12);
@@ -538,12 +561,31 @@ onUnmounted(stopPolling)
   border-color: transparent;
 }
 
-.status[data-status='seen'] {
-  color: var(--green-soft);
+.status[data-status='paid'] {
+  color: #04120b;
+  background: var(--green-soft);
+  border-color: transparent;
 }
 
-.status[data-status='done'] {
+.status[data-status='shipped'] {
   color: var(--ink-muted);
+}
+
+.status[data-status='cancelled'] {
+  color: #ff9a9a;
+}
+
+.order__ms {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.order__ms p {
+  margin: 0;
+}
+
+.shipped-label {
+  font-size: 0.9rem;
 }
 
 .lines {
