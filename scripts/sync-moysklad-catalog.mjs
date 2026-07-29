@@ -81,11 +81,25 @@ function stripCategoryNumber(name) {
     .trim() || String(name || '').trim()
 }
 
+function categorySortKey(name) {
+  const raw = String(name || '').trim()
+  const match = raw.match(/^(\d+)/u)
+  return {
+    order: match ? Number(match[1]) : Number.POSITIVE_INFINITY,
+    raw,
+  }
+}
+
+function compareCategoriesByMoySkladOrder(a, b) {
+  if (a.order !== b.order) return a.order - b.order
+  return a.raw.localeCompare(b.raw, 'ru')
+}
+
 function categoryNameFromItem(item, categoryByHref) {
   const href = item.productFolder?.meta?.href
-  if (href && categoryByHref.has(href)) return stripCategoryNumber(categoryByHref.get(href))
+  if (href && categoryByHref.has(href)) return categoryByHref.get(href)
   if (typeof item.pathName === 'string' && item.pathName.trim()) {
-    return stripCategoryNumber(item.pathName.split('/')[0].trim())
+    return item.pathName.split('/')[0].trim()
   }
   return 'Без категории'
 }
@@ -135,19 +149,21 @@ function makeStarterSet(existingCatalog) {
 }
 
 function buildCatalog(categories, assortment, existingCatalog) {
+  // Keep raw MoySklad folder names (with numeric prefixes) for order;
+  // strip numbers only when writing display names into catalog.json.
   const categoryByHref = new Map(
     categories
       .filter((row) => row?.meta?.href && row?.name)
-      .map((row) => [row.meta.href, stripCategoryNumber(row.name)]),
+      .map((row) => [row.meta.href, String(row.name).trim()]),
   )
 
   const grouped = new Map()
   for (const item of assortment) {
     if (!item || !item.name || item.archived) continue
-    const category = categoryNameFromItem(item, categoryByHref)
-    if (!grouped.has(category)) grouped.set(category, [])
+    const rawCategory = categoryNameFromItem(item, categoryByHref)
+    if (!grouped.has(rawCategory)) grouped.set(rawCategory, [])
 
-    grouped.get(category).push({
+    grouped.get(rawCategory).push({
       id: item.id,
       name: item.name,
       price: parsePrice(item),
@@ -156,9 +172,14 @@ function buildCatalog(categories, assortment, existingCatalog) {
   }
 
   const sortedCategories = Array.from(grouped.entries())
-    .sort((a, b) => a[0].localeCompare(b[0], 'ru'))
-    .map(([category, products]) => ({
-      category,
+    .map(([rawCategory, products]) => ({
+      rawCategory,
+      sortKey: categorySortKey(rawCategory),
+      products,
+    }))
+    .sort((a, b) => compareCategoriesByMoySkladOrder(a.sortKey, b.sortKey))
+    .map(({ rawCategory, products }) => ({
+      category: stripCategoryNumber(rawCategory),
       products: products.sort((a, b) => a.name.localeCompare(b.name, 'ru')),
     }))
 
