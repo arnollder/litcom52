@@ -2,14 +2,11 @@
 
 Vue 3 витрина заказа литературы по мотивам [litcom-ekb.ru](https://litcom-ekb.ru/) в чёрно-зелёной палитре.
 
-**Сайт:** https://arnollder.github.io/litcom52/
-
 ## Стек
 
 - Vue 3 + Vite
 - Vue Router
 - Pinia (корзина в `localStorage`)
-- GitHub Pages (Actions)
 - МойСклад API (каталог, контрагенты, резерв заказа)
 
 ## Запуск
@@ -19,7 +16,7 @@ npm install
 npm run dev
 ```
 
-Сборка: `npm run build` (base path `/litcom52/` для Pages).
+Сборка: `npm run build`. Продакшен на VPS: `npm run build && npm start`.
 
 ## Контрагенты в checkout из МойСклад
 
@@ -43,7 +40,7 @@ npm run sync:moysklad:counterparties
 
 Поэтому резерв доступен при `npm run dev` / `npm run preview` (нужны `MOYSKLAD_*` в `.env`).
 
-На чистом GitHub Pages без backend endpoint резерв не выполнится — для продакшена укажите `VITE_ORDER_API_URL` на ваш API с тем же маршрутом `/api/orders/reserve`.
+Для продакшена укажите `VITE_ORDER_API_URL` на ваш API с тем же маршрутом `/api/orders/reserve`, либо используйте `npm start` (встроенный API).
 
 ## Live-остатки из МойСклад
 
@@ -56,7 +53,7 @@ npm run sync:moysklad:counterparties
 
 Endpoint: `GET /api/stock` (свободный остаток = stock − reserve).
 
-Работает при `npm run dev` / `npm run preview`. На GitHub Pages без API будут показаны остатки из `catalog.json`.
+Работает при `npm run dev` / `npm run preview` / `npm start`. Без API будут показаны остатки из `catalog.json`.
 
 ## Синхронизация каталога из МойСклад
 
@@ -96,7 +93,7 @@ API:
 Для продакшена на VPS:
 
 ```bash
-npm run build:vps
+npm run build
 npm start
 ```
 

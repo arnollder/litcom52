@@ -4,6 +4,5 @@ import moyskladApiPlugin from './vite-plugin-moysklad-api.js'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/litcom52/',
   plugins: [vue(), moyskladApiPlugin()],
 })
