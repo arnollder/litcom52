@@ -50,11 +50,11 @@ async function submit() {
   try {
     const moySkladOrder = await reserveOrderInMoySklad({
       counterpartyId: selectedCounterparty.value.id,
+      counterpartyName: selectedCounterparty.value.name,
       items: orderSnapshot.items,
       customer: orderSnapshot.customer,
       total: orderSnapshot.total,
       createdAt: orderSnapshot.createdAt,
-      comment: `Заказ с витрины Литком-ЕКБ · ${selectedCounterparty.value.name}`,
     })
 
     reservedOrder.value = moySkladOrder

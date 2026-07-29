@@ -66,6 +66,7 @@ export async function fetchCounterpartiesFromMoySklad() {
  * Creates a MoySklad customer order and reserves cart lines.
  * @param {{
  *   counterpartyId: string,
+ *   counterpartyName?: string,
  *   items: Array<{ id: string|number, qty: number, price: number, name: string }>,
  *   comment?: string,
  *   customer?: object,
@@ -82,6 +83,7 @@ export async function reserveOrderInMoySklad(payload) {
     },
     body: JSON.stringify({
       counterpartyId: payload.counterpartyId,
+      counterpartyName: payload.counterpartyName,
       comment: payload.comment,
       customer: payload.customer,
       total: payload.total,

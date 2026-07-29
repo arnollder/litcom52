@@ -2,6 +2,7 @@
 
 import { getBaseUrl, moyskladFetch } from './moysklad-env.mjs'
 import { buildCustomerOrderStatePayload } from './customer-order-state.mjs'
+import { buildStorefrontOrderComment } from './storefront-order-comment.mjs'
 
 function meta(type, id, baseUrl) {
   return {
@@ -44,7 +45,7 @@ async function resolveAssortmentType(id) {
 
 /**
  * Creates a MoySklad customer order and reserves each line.
- * @param {{ counterpartyId: string, items: Array<{ id: string, qty: number, price?: number, name?: string }>, comment?: string }} order
+ * @param {{ counterpartyId: string, counterpartyName?: string, items: Array<{ id: string, qty: number, price?: number, name?: string }>, comment?: string }} order
  */
 export async function createReservedCustomerOrder(order) {
   const counterpartyId = String(order?.counterpartyId || '').trim()
@@ -87,7 +88,10 @@ export async function createReservedCustomerOrder(order) {
     agent: {
       meta: meta('counterparty', counterpartyId, baseUrl),
     },
-    description: order.comment || 'Заказ с витрины Литком-ЕКБ',
+    description: buildStorefrontOrderComment({
+      counterpartyName: order.counterpartyName,
+      extra: order.comment,
+    }),
     positions,
   }
 
@@ -112,5 +116,6 @@ export async function createReservedCustomerOrder(order) {
     reservedPositions: positions.length,
     sum: typeof created.sum === 'number' ? created.sum / 100 : null,
     stateName: created?.state?.name || stateName,
+    description: body.description,
   }
 }

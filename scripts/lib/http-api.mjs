@@ -3,8 +3,6 @@
 import {
   appendOrder,
   getOrderById,
-  listOrders,
-  saveOrder,
   updateOrderStatus,
 } from './orders-store.mjs'
 import { createReservedCustomerOrder } from './create-customer-order.mjs'
@@ -13,6 +11,10 @@ import {
   isPaidLikeStatus,
   setCustomerOrderState,
 } from './customer-order-state.mjs'
+import {
+  getCustomerOrderForAdmin,
+  listCustomerOrdersForAdmin,
+} from './list-customer-orders.mjs'
 import { fetchLiveStockMap } from './fetch-stock.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
 
@@ -75,56 +77,6 @@ function mapErrorStatus(error) {
   return status >= 400 && status < 600 ? status : 500
 }
 
-async function enrichOrderFromMoySklad(order) {
-  const moySkladId = order?.moySklad?.id
-  if (!moySkladId) {
-    return {
-      ...order,
-      canShip: false,
-    }
-  }
-
-  try {
-    const snapshot = await fetchCustomerOrderSnapshot(moySkladId)
-    const nextStatus = snapshot.status || order.status
-    const enriched = {
-      ...order,
-      status: nextStatus,
-      canShip: isPaidLikeStatus(nextStatus, snapshot.stateName) && nextStatus !== 'shipped',
-      moySklad: {
-        ...(order.moySklad || {}),
-        id: snapshot.id,
-        name: snapshot.name || order.moySklad?.name || null,
-        href: snapshot.href || order.moySklad?.href || null,
-        stateName: snapshot.stateName,
-        payedSum: snapshot.payedSum,
-        shippedSum: snapshot.shippedSum,
-      },
-    }
-
-    if (
-      enriched.status !== order.status ||
-      enriched.moySklad.stateName !== order.moySklad?.stateName
-    ) {
-      const { canShip: _canShip, moySkladSyncError: _syncError, ...persistable } = enriched
-      await saveOrder({
-        ...persistable,
-        updatedAt: new Date().toISOString(),
-      })
-    }
-
-    return enriched
-  } catch (error) {
-    console.error('[admin-orders] MoySklad sync failed for', moySkladId, error)
-    return {
-      ...order,
-      canShip: isPaidLikeStatus(order.status, order.moySklad?.stateName) && order.status !== 'shipped',
-      moySkladSyncError:
-        error instanceof Error ? error.message : 'Не удалось синхронизировать статус МойСклад',
-    }
-  }
-}
-
 export async function handleReserveOrder(req, res) {
   if (req.method === 'OPTIONS') {
     corsPreflight(res, 'POST, OPTIONS')
@@ -141,6 +93,8 @@ export async function handleReserveOrder(req, res) {
     const body = await readJsonBody(req)
     const result = await createReservedCustomerOrder({
       counterpartyId: body.counterpartyId,
+      counterpartyName:
+        body.counterpartyName || body.customer?.counterparty?.name || body.customer?.name || '',
       items: body.items,
       comment: body.comment,
     })
@@ -152,7 +106,7 @@ export async function handleReserveOrder(req, res) {
         customer: body.customer || null,
         items: body.items,
         total: body.total,
-        comment: body.comment || '',
+        comment: result.description || body.comment || '',
         moySklad: result,
       })
     } catch (storeError) {
@@ -189,34 +143,38 @@ export async function handleStock(req, res) {
 
 async function applyAdminStatus(orderId, requestedStatus) {
   const status = String(requestedStatus || '').trim()
-  const order = await getOrderById(orderId)
-  if (!order) {
-    const error = new Error('Заказ не найден')
-    error.status = 404
-    throw error
-  }
-
-  const moySkladId = order.moySklad?.id
+  const moySkladId = String(orderId || '').trim()
   if (!moySkladId) {
-    const error = new Error('У заказа нет документа МойСклад')
+    const error = new Error('Не указан id заказа')
     error.status = 400
     throw error
   }
 
+  // Prefer MoySklad id (admin list is sourced from customerorder).
+  // Fall back to local store lookup for older inbox UUIDs.
+  let resolvedMoySkladId = moySkladId
+  const local = await getOrderById(moySkladId)
+  if (local?.moySklad?.id) {
+    resolvedMoySkladId = local.moySklad.id
+  }
+
   if (status === 'paid') {
-    const ms = await setCustomerOrderState(moySkladId, 'Оплачен')
-    return updateOrderStatus(orderId, 'paid', {
-      moySklad: {
-        id: ms.id,
-        name: ms.name,
-        href: ms.href,
-        stateName: ms.stateName,
-      },
-    })
+    const ms = await setCustomerOrderState(resolvedMoySkladId, 'Оплачен')
+    if (local) {
+      await updateOrderStatus(local.id, 'paid', {
+        moySklad: {
+          id: ms.id,
+          name: ms.name,
+          href: ms.href,
+          stateName: ms.stateName,
+        },
+      })
+    }
+    return getCustomerOrderForAdmin(resolvedMoySkladId)
   }
 
   if (status === 'shipped') {
-    const snapshot = await fetchCustomerOrderSnapshot(moySkladId)
+    const snapshot = await fetchCustomerOrderSnapshot(resolvedMoySkladId)
     if (!isPaidLikeStatus(snapshot.status, snapshot.stateName)) {
       const error = new Error(
         `Отгрузка недоступна: в МойСклад статус «${snapshot.stateName || 'не задан'}», нужен «Оплачен».`,
@@ -225,15 +183,18 @@ async function applyAdminStatus(orderId, requestedStatus) {
       throw error
     }
 
-    const ms = await setCustomerOrderState(moySkladId, 'Отгружен')
-    return updateOrderStatus(orderId, 'shipped', {
-      moySklad: {
-        id: ms.id,
-        name: ms.name,
-        href: ms.href,
-        stateName: ms.stateName,
-      },
-    })
+    const ms = await setCustomerOrderState(resolvedMoySkladId, 'Отгружен')
+    if (local) {
+      await updateOrderStatus(local.id, 'shipped', {
+        moySklad: {
+          id: ms.id,
+          name: ms.name,
+          href: ms.href,
+          stateName: ms.stateName,
+        },
+      })
+    }
+    return getCustomerOrderForAdmin(resolvedMoySkladId)
   }
 
   const error = new Error('Некорректный статус. Допустимо: paid, shipped')
@@ -252,16 +213,13 @@ export async function handleAdminOrders(req, res, pathname) {
     assertAdmin(req)
 
     if (pathname === '/api/admin/orders' && req.method === 'GET') {
-      const listed = await listOrders()
-      const orders = []
-      for (const order of listed.orders) {
-        orders.push(await enrichOrderFromMoySklad(order))
-      }
+      const listed = await listCustomerOrdersForAdmin({ limit: 100 })
       sendJson(res, 200, {
         ok: true,
-        orders,
-        count: orders.length,
-        newCount: orders.filter((order) => order.status === 'new').length,
+        orders: listed.orders,
+        count: listed.count,
+        newCount: listed.newCount,
+        source: 'moysklad-customerorder',
       })
       return
     }
@@ -270,8 +228,7 @@ export async function handleAdminOrders(req, res, pathname) {
     if (match && req.method === 'PATCH') {
       const body = await readJsonBody(req)
       const order = await applyAdminStatus(match[1], body.status)
-      const enriched = await enrichOrderFromMoySklad(order)
-      sendJson(res, 200, { ok: true, order: enriched })
+      sendJson(res, 200, { ok: true, order })
       return
     }
 

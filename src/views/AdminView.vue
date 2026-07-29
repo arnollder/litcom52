@@ -204,7 +204,7 @@ onUnmounted(stopPolling)
       <div>
         <p class="eyebrow">Литком ЕКБ</p>
         <h1 class="display">Админка заказов</h1>
-        <p class="muted">Новые заказы с витрины появляются здесь автоматически.</p>
+        <p class="muted">Список соответствует разделу «Заказы покупателей» в МойСклад.</p>
       </div>
       <div v-if="isAuthed" class="admin__meta">
         <span class="badge" :class="{ 'badge--hot': newCount > 0 }">
@@ -281,7 +281,7 @@ onUnmounted(stopPolling)
 
       <div v-if="!filteredOrders.length && !isLoading" class="empty panel">
         <h2>Пока пусто</h2>
-        <p class="muted">Как только кто-то оформит заказ на витрине — он появится здесь.</p>
+        <p class="muted">В МойСклад пока нет заказов покупателей.</p>
       </div>
 
       <ul class="orders">
@@ -292,19 +292,23 @@ onUnmounted(stopPolling)
           :class="{
             'order--new': order.status === 'new',
             'order--flash': flashIds.has(order.id),
+            'order--storefront': order.fromStorefront,
           }"
         >
           <div class="order__top">
             <div>
               <div class="order__title">
                 <span class="status" :data-status="order.status">
-                  {{ statusLabel[order.status] || order.status }}
+                  {{ statusLabel[order.status] || order.moySklad?.stateName || order.status }}
                 </span>
                 <strong>
+                  №{{ order.moySklad?.name || '—' }} ·
                   {{ order.customer?.counterparty?.name || 'Контрагент не указан' }}
                 </strong>
+                <span v-if="order.fromStorefront" class="tag">С этого сервиса</span>
               </div>
               <p class="muted order__time">{{ formatDate(order.createdAt) }}</p>
+              <p v-if="order.comment" class="order__comment">{{ order.comment }}</p>
               <p v-if="order.customer?.contact" class="muted">
                 Контакт: {{ order.customer.contact }}
               </p>
@@ -512,6 +516,10 @@ onUnmounted(stopPolling)
   box-shadow: 0 0 0 1px rgba(62, 207, 142, 0.12);
 }
 
+.order--storefront {
+  border-color: rgba(62, 207, 142, 0.28);
+}
+
 .order--flash {
   animation: flash-in 0.8s ease;
 }
@@ -537,6 +545,25 @@ onUnmounted(stopPolling)
 .order__time {
   margin: 0.35rem 0 0;
   font-size: 0.88rem;
+}
+
+.order__comment {
+  margin: 0.45rem 0 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(62, 207, 142, 0.4);
+  background: rgba(62, 207, 142, 0.12);
+  color: var(--green-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .order__sum {
