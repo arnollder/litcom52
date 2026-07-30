@@ -10,7 +10,8 @@
     "start": "node ./scripts/prod-server.mjs",
     "sync:moysklad": "node ./scripts/sync-moysklad-catalog.mjs",
     "sync:moysklad:counterparties": "node ./scripts/sync-moysklad-counterparties.mjs",
-    "sync:moysklad:all": "npm run sync:moysklad && npm run sync:moysklad:counterparties"
+    "sync:moysklad:all": "npm run sync:moysklad && npm run sync:moysklad:counterparties",
+    "sync:moysklad:cron": "node ./scripts/cron-sync-moysklad.mjs"
   },
   "dependencies": {
     "pinia": "^4.0.2",

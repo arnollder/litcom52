@@ -1,0 +1,17 @@
+[Unit]
+Description=litcom52 MoySklad catalog/counterparties sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=litcom
+Group=litcom
+WorkingDirectory=/opt/litcom52
+Environment=NODE_ENV=production
+Environment=CRON_SYNC_REBUILD=1
+EnvironmentFile=-/opt/litcom52/.env
+ExecStart=/usr/bin/node /opt/litcom52/scripts/cron-sync-moysklad.mjs
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true

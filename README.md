@@ -75,6 +75,39 @@ npm run sync:moysklad
 npm run sync:moysklad:all
 ```
 
+## Cron-синк МойСклад
+
+На проде каталог/контрагентов можно обновлять по таймеру (каждый час):
+
+```bash
+npm run sync:moysklad:cron
+```
+
+Скрипт:
+
+1. тянет каталог → `src/data/catalog.json`;
+2. тянет контрагентов → `public/counterparties.json` и сразу в `dist/counterparties.json` (если `dist/` есть);
+3. по умолчанию делает `npm run build`, чтобы обновлённый каталог попал в бандл витрины.
+
+Переменные:
+
+- `CRON_SYNC_REBUILD=0` — только JSON, без пересборки;
+- `CRON_SYNC_LOCK_PATH` — путь к lock-файлу (по умолчанию `data/sync.lock`).
+
+На VPS после выкладки кода:
+
+```bash
+sudo bash /opt/litcom52/deploy/install-sync-timer.sh
+sudo systemctl start litcom52-sync.service   # прогон сразу
+```
+
+Проверка:
+
+```bash
+systemctl list-timers litcom52-sync.timer
+journalctl -u litcom52-sync.service -n 50 --no-pager
+```
+
 ## Админка заказов
 
 Страница `/admin` — зеркало раздела «Заказы покупателей» в МойСклад.

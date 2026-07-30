@@ -112,7 +112,14 @@ async function main() {
   }
 
   await writeFile(OUTPUT_PATH, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
-  console.log(`Counterparties synced: ${deduped.length} -> public/counterparties.json`)
+
+  const distPath = resolve(ROOT_DIR, 'dist/counterparties.json')
+  try {
+    await writeFile(distPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
+    console.log(`Counterparties synced: ${deduped.length} -> public/counterparties.json + dist/counterparties.json`)
+  } catch {
+    console.log(`Counterparties synced: ${deduped.length} -> public/counterparties.json`)
+  }
 }
 
 main().catch((error) => {

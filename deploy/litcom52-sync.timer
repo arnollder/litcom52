@@ -1,0 +1,13 @@
+[Unit]
+Description=Run litcom52 MoySklad sync every hour
+Requires=litcom52-sync.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+AccuracySec=1min
+Persistent=true
+Unit=litcom52-sync.service
+
+[Install]
+WantedBy=timers.target
