@@ -7,6 +7,7 @@ import {
   setAdminToken,
   updateAdminOrderStatus,
 } from '../services/moysklad'
+import ThemeToggle from '../components/ThemeToggle.vue'
 
 const POLL_MS = 5000
 
@@ -206,13 +207,19 @@ onUnmounted(stopPolling)
         <h1 class="display">Админка заказов</h1>
         <p class="muted">Список соответствует разделу «Заказы покупателей» в МойСклад.</p>
       </div>
-      <div v-if="isAuthed" class="admin__meta">
-        <span class="badge" :class="{ 'badge--hot': newCount > 0 }">
-          Новых: {{ newCount }}
-        </span>
-        <span class="muted sync">
-          {{ lastSyncedAt ? `Обновлено ${formatDate(lastSyncedAt)}` : 'Ожидание…' }}
-        </span>
+      <div class="admin__aside">
+        <template v-if="isAuthed">
+          <div class="admin__meta-row">
+            <span class="badge" :class="{ 'badge--hot': newCount > 0 }">
+              Новых: {{ newCount }}
+            </span>
+            <ThemeToggle />
+          </div>
+          <span class="muted sync">
+            {{ lastSyncedAt ? `Обновлено ${formatDate(lastSyncedAt)}` : 'Ожидание…' }}
+          </span>
+        </template>
+        <ThemeToggle v-else />
       </div>
     </header>
 
@@ -405,10 +412,16 @@ onUnmounted(stopPolling)
   font-size: clamp(1.7rem, 4vw, 2.4rem);
 }
 
-.admin__meta {
+.admin__aside {
   display: grid;
   gap: 0.45rem;
   justify-items: end;
+}
+
+.admin__meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .badge {
