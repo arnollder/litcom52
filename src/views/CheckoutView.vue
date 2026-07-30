@@ -245,7 +245,7 @@ onMounted(loadCounterparties)
 .panel {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(11, 21, 16, 0.72);
+  background: var(--surface);
   padding: 1.2rem;
 }
 
@@ -267,7 +267,7 @@ onMounted(loadCounterparties)
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 0.85rem;
-  border-bottom: 1px solid rgba(62, 207, 142, 0.1);
+  border-bottom: 1px solid var(--line-faint);
 }
 
 .lines strong {
@@ -306,14 +306,14 @@ textarea {
   padding: 0.8rem 0.9rem;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--inset);
   color: var(--ink);
   resize: vertical;
 }
 
 input:focus,
 textarea:focus {
-  outline: 2px solid rgba(62, 207, 142, 0.35);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
@@ -328,14 +328,14 @@ textarea:focus {
 }
 
 .error {
-  color: #ff9a9a;
+  color: var(--danger-text);
 }
 
 .counterparty-dropdown {
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--inset-soft);
 }
 
 .counterparty-dropdown summary {
@@ -361,7 +361,7 @@ textarea:focus {
   display: flex;
   align-items: flex-start;
   gap: 0.6rem;
-  border: 1px solid rgba(62, 207, 142, 0.12);
+  border: 1px solid var(--accent-border-faint);
   border-radius: 10px;
   padding: 0.55rem 0.65rem;
 }

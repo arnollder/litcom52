@@ -88,16 +88,16 @@ import { RouterLink } from 'vue-router'
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(180deg, rgba(5, 10, 7, 0.15) 0%, rgba(5, 10, 7, 0.55) 45%, rgba(5, 10, 7, 0.96) 100%),
-    radial-gradient(ellipse 80% 60% at 70% 40%, rgba(62, 207, 142, 0.22), transparent 60%);
+    var(--hero-scrim),
+    radial-gradient(ellipse 80% 60% at 70% 40%, var(--hero-glow), transparent 60%);
 }
 
 .hero__grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(62, 207, 142, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(62, 207, 142, 0.05) 1px, transparent 1px);
+    linear-gradient(var(--hero-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hero-grid) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(circle at 70% 35%, black, transparent 70%);
   animation: pulse-line 6s ease-in-out infinite;
@@ -106,9 +106,9 @@ import { RouterLink } from 'vue-router'
 .hero__book {
   position: absolute;
   border-radius: 4px 14px 14px 4px;
-  border: 1px solid rgba(154, 240, 196, 0.25);
-  background: linear-gradient(90deg, #143526, #0d1f16 18%, #173b29);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--book-border);
+  background: var(--book-fill);
+  box-shadow: var(--book-shadow);
   animation: drift 12s ease-in-out infinite alternate;
 }
 
@@ -147,7 +147,7 @@ import { RouterLink } from 'vue-router'
   right: -5%;
   bottom: -10%;
   border-radius: 60% 40% 55% 45%;
-  background: radial-gradient(circle at 30% 30%, rgba(62, 207, 142, 0.28), transparent 65%);
+  background: radial-gradient(circle at 30% 30%, var(--hero-leaf), transparent 65%);
   filter: blur(2px);
 }
 

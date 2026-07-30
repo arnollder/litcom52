@@ -27,7 +27,7 @@ const year = new Date().getFullYear()
   margin-top: auto;
   border-top: 1px solid var(--line);
   padding: 2.5rem 0 3rem;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--inset-soft);
 }
 
 .footer__inner {

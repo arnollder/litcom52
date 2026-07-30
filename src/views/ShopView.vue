@@ -213,12 +213,12 @@ onUnmounted(() => {
   padding: 0.85rem 1rem;
   border-radius: 14px;
   border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--inset);
   color: var(--ink);
 }
 
 .search input:focus {
-  outline: 2px solid rgba(62, 207, 142, 0.35);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 
@@ -227,7 +227,7 @@ onUnmounted(() => {
   margin-bottom: 0.9rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(11, 21, 16, 0.72);
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -286,7 +286,7 @@ th,
 td {
   padding: 0.85rem 1rem;
   text-align: left;
-  border-bottom: 1px solid rgba(62, 207, 142, 0.1);
+  border-bottom: 1px solid var(--line-faint);
   vertical-align: middle;
 }
 
@@ -295,7 +295,7 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ink-muted);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--inset-soft);
 }
 
 td:nth-child(2),
@@ -310,7 +310,7 @@ th:nth-child(5) {
 }
 
 tr.is-active {
-  background: rgba(62, 207, 142, 0.06);
+  background: var(--accent-fill-soft);
 }
 
 .empty,

@@ -48,7 +48,7 @@ const showFooterCart = computed(() => route.name === 'shop' && cart.count > 0)
   bottom: 0;
   z-index: 40;
   padding: 0.85rem 0 calc(0.85rem + env(safe-area-inset-bottom));
-  background: rgba(5, 10, 7, 0.92);
+  background: var(--sticky-bg);
   border-top: 1px solid var(--line);
   backdrop-filter: blur(14px);
 }

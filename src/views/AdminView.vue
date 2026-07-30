@@ -417,14 +417,14 @@ onUnmounted(stopPolling)
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: rgba(11, 21, 16, 0.8);
+  background: var(--surface);
   font-size: 0.85rem;
   font-weight: 700;
 }
 
 .badge--hot {
-  border-color: rgba(62, 207, 142, 0.55);
-  color: #04120b;
+  border-color: var(--accent-border-strong);
+  color: var(--on-green);
   background: linear-gradient(145deg, var(--green-soft), var(--green));
   animation: pulse 1.6s ease-in-out infinite;
 }
@@ -432,7 +432,7 @@ onUnmounted(stopPolling)
 .panel {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(11, 21, 16, 0.72);
+  background: var(--surface);
   padding: 1.15rem;
 }
 
@@ -454,7 +454,7 @@ onUnmounted(stopPolling)
   padding: 0.8rem 0.9rem;
   border-radius: 12px;
   border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--inset);
   color: var(--ink);
 }
 
@@ -486,8 +486,8 @@ onUnmounted(stopPolling)
 
 .chip--active {
   color: var(--ink);
-  background: rgba(62, 207, 142, 0.12);
-  border-color: rgba(62, 207, 142, 0.4);
+  background: var(--accent-fill);
+  border-color: var(--accent-border);
 }
 
 .sound {
@@ -512,12 +512,12 @@ onUnmounted(stopPolling)
 }
 
 .order--new {
-  border-color: rgba(62, 207, 142, 0.45);
-  box-shadow: 0 0 0 1px rgba(62, 207, 142, 0.12);
+  border-color: var(--btn-ghost-hover);
+  box-shadow: 0 0 0 1px var(--accent-border-faint);
 }
 
 .order--storefront {
-  border-color: rgba(62, 207, 142, 0.28);
+  border-color: var(--accent-border-mid);
 }
 
 .order--flash {
@@ -558,8 +558,8 @@ onUnmounted(stopPolling)
   align-items: center;
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
-  border: 1px solid rgba(62, 207, 142, 0.4);
-  background: rgba(62, 207, 142, 0.12);
+  border: 1px solid var(--accent-border);
+  background: var(--accent-fill);
   color: var(--green-soft);
   font-size: 0.75rem;
   font-weight: 700;
@@ -583,13 +583,13 @@ onUnmounted(stopPolling)
 }
 
 .status[data-status='new'] {
-  color: #04120b;
+  color: var(--on-green);
   background: var(--green);
   border-color: transparent;
 }
 
 .status[data-status='paid'] {
-  color: #04120b;
+  color: var(--on-green);
   background: var(--green-soft);
   border-color: transparent;
 }
@@ -599,7 +599,7 @@ onUnmounted(stopPolling)
 }
 
 .status[data-status='cancelled'] {
-  color: #ff9a9a;
+  color: var(--danger-text);
 }
 
 .order__ms {
@@ -628,7 +628,7 @@ onUnmounted(stopPolling)
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 0.55rem;
-  border-bottom: 1px solid rgba(62, 207, 142, 0.1);
+  border-bottom: 1px solid var(--line-faint);
   font-size: 0.95rem;
 }
 
@@ -642,7 +642,7 @@ onUnmounted(stopPolling)
 }
 
 .error {
-  color: #ff9a9a;
+  color: var(--danger-text);
   margin: 0 0 1rem;
 }
 
@@ -662,10 +662,10 @@ onUnmounted(stopPolling)
 
 @keyframes flash-in {
   from {
-    background: rgba(62, 207, 142, 0.22);
+    background: var(--accent-fill-strong);
   }
   to {
-    background: rgba(11, 21, 16, 0.72);
+    background: var(--surface);
   }
 }
 

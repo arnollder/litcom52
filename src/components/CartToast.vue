@@ -22,7 +22,7 @@ const cart = useCartStore()
   padding: 1rem 1.1rem;
   border-radius: 16px;
   border: 1px solid var(--line);
-  background: #0d1a14;
+  background: var(--surface-solid);
   box-shadow: var(--shadow);
 }
 

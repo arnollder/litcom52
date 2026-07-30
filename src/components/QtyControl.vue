@@ -38,7 +38,7 @@ function onInput(event, max) {
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--inset);
 }
 
 .qty button {
@@ -52,7 +52,7 @@ function onInput(event, max) {
 }
 
 .qty button:hover {
-  background: rgba(62, 207, 142, 0.1);
+  background: var(--nav-hover);
 }
 
 .qty input {

@@ -94,7 +94,7 @@ import { RouterLink } from 'vue-router'
   position: relative;
   padding: 1rem 1rem 1rem 3.4rem;
   border-left: 2px solid var(--line);
-  background: linear-gradient(90deg, rgba(62, 207, 142, 0.06), transparent);
+  background: linear-gradient(90deg, var(--accent-fill-soft), transparent);
 }
 
 .rules li::before {
