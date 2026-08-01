@@ -203,7 +203,7 @@ onUnmounted(stopPolling)
   <div class="admin container">
     <header class="admin__head">
       <div>
-        <p class="eyebrow">Литком ЕКБ</p>
+        <p class="eyebrow">Литком НН</p>
         <h1 class="display">Админка заказов</h1>
         <p class="muted">Список соответствует разделу «Заказы покупателей» в МойСклад.</p>
       </div>

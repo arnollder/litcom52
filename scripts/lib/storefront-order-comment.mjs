@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 
 /** Stable marker written into MoySklad customerorder.description */
-export const STOREFRONT_ORDER_MARKER = 'Заказ с сервиса Литком ЕКБ (arnolder.ru)'
+export const STOREFRONT_ORDER_MARKER = 'Заказ с сервиса Литком НН'
 
-/** Older marker used by previous checkouts — still treated as storefront orders */
-export const LEGACY_STOREFRONT_ORDER_MARKERS = ['Заказ с витрины Литком-ЕКБ']
+/** Older markers — still treated as storefront orders */
+export const LEGACY_STOREFRONT_ORDER_MARKERS = [
+  'Заказ с витрины Литком-НН',
+  'Заказ с сервиса Литком ЕКБ (arnolder.ru)',
+  'Заказ с витрины Литком-ЕКБ',
+]
 
 export function isStorefrontOrderComment(description = '') {
   const text = String(description || '')

@@ -112,8 +112,8 @@ onMounted(loadCounterparties)
         <p class="eyebrow">Готово</p>
         <h1 class="display">Заказ зарезервирован в МойСклад</h1>
         <p class="muted">
-          Позиции заказа поставлены в резерв. Ожидайте подтверждения во второй или четвёртый
-          вторник.
+          Позиции заказа поставлены в резерв. Ожидайте подтверждения и реквизитов в чате
+          литкома.
         </p>
         <p v-if="reservedOrder?.name" class="hint muted">
           Документ: {{ reservedOrder.name }}

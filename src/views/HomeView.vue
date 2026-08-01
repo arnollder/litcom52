@@ -13,12 +13,12 @@ import { RouterLink } from 'vue-router'
     </div>
 
     <div class="container hero__content">
-      <p class="hero__brand display reveal">ЛИТКОМ-ЕКБ</p>
+      <p class="hero__brand display reveal">ЛИТКОМ-НН</p>
       <h1 class="hero__title display reveal reveal-delay-1">
         Магазинчик литературы сообщества
       </h1>
       <p class="hero__lead muted reveal reveal-delay-2">
-        Заказ литературы Сообщества АН Свердловской области — без наценки, для
+        Заказ литературы Сообщества АН Нижнего Новгорода — без наценки, для
         групп и членов местности.
       </p>
       <div class="hero__cta reveal reveal-delay-3">
@@ -44,8 +44,8 @@ import { RouterLink } from 'vue-router'
       <li class="steps__item">
         <span class="steps__num">02</span>
         <div>
-          <h3>Подтверждение дважды в месяц</h3>
-          <p class="muted">Оператор сверяет заказы во второй и четвёртый вторник.</p>
+          <h3>Подтверждение в чате</h3>
+          <p class="muted">Оператор сверяет заказы и публикует реквизиты в чате литкома.</p>
         </div>
       </li>
       <li class="steps__item">
@@ -53,7 +53,8 @@ import { RouterLink } from 'vue-router'
         <div>
           <h3>Оплата и выдача</h3>
           <p class="muted">
-            Реквизиты — в чате литкома. Получение: ул. Декабристов 27, по субботам.
+            Получение: ул. Канавинская 2а, офис №5 (группа «Антей»). Рабочие
+            собрания литкома — каждое первое воскресенье месяца.
           </p>
         </div>
       </li>

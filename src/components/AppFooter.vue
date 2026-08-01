@@ -6,14 +6,15 @@ const year = new Date().getFullYear()
   <footer class="footer">
     <div class="container footer__inner">
       <div>
-        <div class="footer__brand display">ЛИТКОМ-ЕКБ</div>
+        <div class="footer__brand display">ЛИТКОМ-НН</div>
         <p class="muted">
-          Система заказа литературы Сообщества АН Свердловской области.
+          Система заказа литературы Сообщества АН Нижнего Новгорода.
         </p>
       </div>
       <div class="footer__links">
         <a href="https://lit-na.ru/" target="_blank" rel="noreferrer">Магазин РЗФ</a>
-        <a href="https://na-ekb.ru" target="_blank" rel="noreferrer">АН Екатеринбург</a>
+        <a href="https://аннн.рф/" target="_blank" rel="noreferrer">АН Нижний Новгород</a>
+        <a href="https://аннн.рф/komiteti/litkom" target="_blank" rel="noreferrer">Литком</a>
       </div>
       <p class="footer__note muted">
         © {{ year }} · сайт-витрина для местности · цены без наценки
