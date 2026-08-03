@@ -12,6 +12,28 @@ const isSubmitting = ref(false)
 const submitError = ref('')
 const reservedOrder = ref(null)
 const submittedTotal = ref(0)
+const phoneCopied = ref(false)
+
+const PAYMENT_PHONE = '+79063535039'
+const PAYMENT_PHONE_LABEL = '+7\u00a0906\u00a0353‑50‑39'
+
+async function copyPaymentPhone() {
+  try {
+    await navigator.clipboard.writeText(PAYMENT_PHONE)
+  } catch {
+    const input = document.createElement('input')
+    input.value = PAYMENT_PHONE
+    document.body.appendChild(input)
+    input.select()
+    document.execCommand('copy')
+    input.remove()
+  }
+  phoneCopied.value = true
+  window.clearTimeout(copyPaymentPhone._t)
+  copyPaymentPhone._t = window.setTimeout(() => {
+    phoneCopied.value = false
+  }, 2000)
+}
 
 const counterparties = ref([])
 const isCounterpartiesLoading = ref(false)
@@ -137,7 +159,15 @@ onMounted(loadCounterparties)
             <div>
               <dt>Телефон</dt>
               <dd>
-                <a class="payment__phone" href="tel:+79063535039">+7&nbsp;906&nbsp;353‑50‑39</a>
+                <button
+                  class="payment__phone"
+                  type="button"
+                  :title="phoneCopied ? 'Скопировано' : 'Скопировать номер'"
+                  @click="copyPaymentPhone"
+                >
+                  {{ PAYMENT_PHONE_LABEL }}
+                </button>
+                <span v-if="phoneCopied" class="payment__copied">Скопировано</span>
               </dd>
             </div>
             <div>
@@ -540,10 +570,20 @@ textarea:focus {
   margin: 0;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
 .payment__phone {
+  border: 0;
+  padding: 0;
+  background: transparent;
   color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
   text-decoration: none;
   border-bottom: 1px solid var(--line);
 }
@@ -551,6 +591,12 @@ textarea:focus {
 .payment__phone:hover {
   color: var(--green);
   border-bottom-color: var(--green);
+}
+
+.payment__copied {
+  color: var(--green);
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 @media (max-width: 820px) {
