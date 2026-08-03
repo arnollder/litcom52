@@ -11,6 +11,7 @@ const submitted = ref(false)
 const isSubmitting = ref(false)
 const submitError = ref('')
 const reservedOrder = ref(null)
+const submittedTotal = ref(0)
 
 const counterparties = ref([])
 const isCounterpartiesLoading = ref(false)
@@ -59,6 +60,7 @@ async function submit() {
     })
 
     reservedOrder.value = moySkladOrder
+    submittedTotal.value = orderSnapshot.total
     const order = {
       ...orderSnapshot,
       moySklad: moySkladOrder,
@@ -115,15 +117,40 @@ onMounted(loadCounterparties)
     <template v-if="submitted">
       <div class="success reveal">
         <p class="eyebrow">Готово</p>
-        <h1 class="display">Заказ зарезервирован в МойСклад</h1>
+        <h1 class="display">Заказ зарезервирован</h1>
         <p class="muted">
-          Позиции заказа поставлены в резерв. Ожидайте подтверждения и реквизитов в чате
-          литкома.
+          Позиции поставлены в резерв. Оплатите заказ по реквизитам ниже и напишите в чат
+          литкома после перевода.
         </p>
         <p v-if="reservedOrder?.name" class="hint muted">
           Документ: {{ reservedOrder.name }}
           <template v-if="reservedOrder.id"> · id {{ reservedOrder.id }}</template>
         </p>
+
+        <div class="payment">
+          <h2>Реквизиты для оплаты</h2>
+          <dl class="payment__details">
+            <div>
+              <dt>Способ</dt>
+              <dd>СБП · ЮMoney</dd>
+            </div>
+            <div>
+              <dt>Телефон</dt>
+              <dd>
+                <a class="payment__phone" href="tel:+79063535039">+7&nbsp;906&nbsp;353‑50‑39</a>
+              </dd>
+            </div>
+            <div>
+              <dt>Получатель</dt>
+              <dd>Евгений&nbsp;Т.</dd>
+            </div>
+            <div v-if="submittedTotal > 0">
+              <dt>Сумма</dt>
+              <dd>{{ submittedTotal.toLocaleString('ru-RU') }}&nbsp;₽</dd>
+            </div>
+          </dl>
+        </div>
+
         <div class="actions">
           <RouterLink class="btn btn-primary" to="/shop">Вернуться в каталог</RouterLink>
           <RouterLink class="btn btn-ghost" to="/">На главную</RouterLink>
@@ -233,8 +260,8 @@ onMounted(loadCounterparties)
           </button>
           <p v-if="submitError" class="hint error">{{ submitError }}</p>
           <p class="hint muted">
-            При отправке позиции резервируются в МойСклад. Подтверждение и реквизиты — в чате
-            литкома.
+            При отправке позиции резервируются в МойСклад. После оформления покажем реквизиты
+            для оплаты.
           </p>
         </form>
       </div>
@@ -475,6 +502,55 @@ textarea:focus {
 .empty,
 .success {
   max-width: 34rem;
+}
+
+.payment {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.payment h2 {
+  margin: 0 0 0.85rem;
+  font-size: 1.05rem;
+}
+
+.payment__details {
+  margin: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.payment__details > div {
+  display: grid;
+  grid-template-columns: 6.5rem 1fr;
+  gap: 0.6rem;
+  align-items: baseline;
+}
+
+.payment__details dt {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 0.88rem;
+}
+
+.payment__details dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.payment__phone {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.payment__phone:hover {
+  color: var(--green);
+  border-bottom-color: var(--green);
 }
 
 @media (max-width: 820px) {
