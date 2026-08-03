@@ -153,6 +153,9 @@ onMounted(loadCounterparties)
               <div class="line__main">
                 <strong>{{ line.name }}</strong>
                 <span class="muted">{{ line.price.toLocaleString('ru-RU') }} ₽ / шт</span>
+              </div>
+              <div class="line__aside">
+                <span class="line__sum">{{ line.sum.toLocaleString('ru-RU') }} ₽</span>
                 <div class="line__controls">
                   <QtyControl
                     :model-value="line.qty"
@@ -175,7 +178,6 @@ onMounted(loadCounterparties)
                   </button>
                 </div>
               </div>
-              <span class="line__sum">{{ line.sum.toLocaleString('ru-RU') }} ₽</span>
             </li>
           </ul>
           <div class="total">
@@ -243,7 +245,6 @@ onMounted(loadCounterparties)
 <style scoped>
 .checkout {
   padding: 2.2rem 0 3rem;
-  max-width: 960px;
 }
 
 .eyebrow {
@@ -264,7 +265,7 @@ onMounted(loadCounterparties)
 
 .layout {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.75fr);
   gap: 1rem;
 }
 
@@ -291,7 +292,7 @@ onMounted(loadCounterparties)
 .lines li {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--line-faint);
@@ -306,6 +307,9 @@ onMounted(loadCounterparties)
 
 .lines strong {
   display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lines span.muted {
@@ -313,12 +317,17 @@ onMounted(loadCounterparties)
   font-size: 0.88rem;
 }
 
+.line__aside {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
 .line__controls {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem;
-  margin-top: 0.15rem;
+  gap: 0.45rem;
 }
 
 .line__remove {
@@ -350,9 +359,10 @@ onMounted(loadCounterparties)
 }
 
 .line__sum {
-  flex-shrink: 0;
   font-variant-numeric: tabular-nums;
-  padding-top: 0.15rem;
+  white-space: nowrap;
+  min-width: 5.5rem;
+  text-align: right;
 }
 
 .total {
@@ -470,6 +480,15 @@ textarea:focus {
 @media (max-width: 820px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .lines li {
+    flex-wrap: wrap;
+  }
+
+  .line__aside {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
 </style>
