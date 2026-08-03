@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
+import QtyControl from '../components/QtyControl.vue'
 import { useCartStore } from '../stores/cart'
 import { fetchCounterpartiesFromMoySklad, reserveOrderInMoySklad } from '../services/moysklad'
 
@@ -82,6 +83,10 @@ function backToShop() {
   router.push('/shop')
 }
 
+function removeLine(id) {
+  cart.setQty(id, 0)
+}
+
 function selectCounterparty(id) {
   selectedCounterpartyId.value = id
   counterpartiesDropdownOpen.value = false
@@ -145,11 +150,26 @@ onMounted(loadCounterparties)
           <h2>Состав</h2>
           <ul class="lines">
             <li v-for="line in cart.lines" :key="line.id">
-              <div>
+              <div class="line__main">
                 <strong>{{ line.name }}</strong>
-                <span class="muted">{{ line.qty }} × {{ line.price.toLocaleString('ru-RU') }} ₽</span>
+                <span class="muted">{{ line.price.toLocaleString('ru-RU') }} ₽ / шт</span>
+                <div class="line__controls">
+                  <QtyControl
+                    :model-value="line.qty"
+                    :max="line.stock"
+                    @update:model-value="cart.setQty(line.id, $event)"
+                  />
+                  <button
+                    class="line__remove"
+                    type="button"
+                    :aria-label="`Удалить ${line.name}`"
+                    @click="removeLine(line.id)"
+                  >
+                    Удалить
+                  </button>
+                </div>
               </div>
-              <span>{{ line.sum.toLocaleString('ru-RU') }} ₽</span>
+              <span class="line__sum">{{ line.sum.toLocaleString('ru-RU') }} ₽</span>
             </li>
           </ul>
           <div class="total">
@@ -265,9 +285,17 @@ onMounted(loadCounterparties)
 .lines li {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 1rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--line-faint);
+}
+
+.line__main {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .lines strong {
@@ -277,6 +305,36 @@ onMounted(loadCounterparties)
 .lines span.muted {
   display: block;
   font-size: 0.88rem;
+}
+
+.line__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+}
+
+.line__remove {
+  border: 0;
+  background: transparent;
+  color: var(--danger-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.1rem;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.line__remove:hover {
+  opacity: 0.8;
+}
+
+.line__sum {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  padding-top: 0.15rem;
 }
 
 .total {
