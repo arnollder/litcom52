@@ -18,7 +18,14 @@ function onInput(event, max) {
 
 <template>
   <div class="qty">
-    <button type="button" aria-label="Уменьшить" @click="change(-1, modelValue, max)">−</button>
+    <button
+      type="button"
+      aria-label="Уменьшить"
+      :disabled="modelValue <= 0"
+      @click="change(-1, modelValue, max)"
+    >
+      −
+    </button>
     <input
       :value="modelValue"
       type="number"
@@ -27,7 +34,14 @@ function onInput(event, max) {
       inputmode="numeric"
       @input="onInput($event, max)"
     />
-    <button type="button" aria-label="Увеличить" @click="change(1, modelValue, max)">+</button>
+    <button
+      type="button"
+      aria-label="Увеличить"
+      :disabled="modelValue >= max"
+      @click="change(1, modelValue, max)"
+    >
+      +
+    </button>
   </div>
 </template>
 
@@ -51,8 +65,13 @@ function onInput(event, max) {
   font-size: 1.1rem;
 }
 
-.qty button:hover {
+.qty button:hover:not(:disabled) {
   background: var(--nav-hover);
+}
+
+.qty button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .qty input {
