@@ -163,9 +163,15 @@ onMounted(loadCounterparties)
                     class="line__remove"
                     type="button"
                     :aria-label="`Удалить ${line.name}`"
+                    :title="`Удалить ${line.name}`"
                     @click="removeLine(line.id)"
                   >
-                    Удалить
+                    <svg class="line__remove-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        fill="currentColor"
+                        d="M9 3a1 1 0 0 0-1 1v1H5a1 1 0 1 0 0 2h1v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7h1a1 1 0 1 0 0-2h-3V4a1 1 0 0 0-1-1H9Zm1 2h4v1h-4V5Zm-1 4a1 1 0 0 1 1 1v7a1 1 0 1 1-2 0v-7a1 1 0 0 1 1-1Zm4 0a1 1 0 0 1 1 1v7a1 1 0 1 1-2 0v-7a1 1 0 0 1 1-1Zm4 0a1 1 0 0 1 1 1v7a1 1 0 1 1-2 0v-7a1 1 0 0 1 1-1Z"
+                      />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -316,19 +322,31 @@ onMounted(loadCounterparties)
 }
 
 .line__remove {
-  border: 0;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   background: transparent;
   color: var(--danger-text);
   cursor: pointer;
-  font: inherit;
-  font-size: 0.85rem;
-  padding: 0.2rem 0.1rem;
-  text-decoration: underline;
-  text-underline-offset: 0.15em;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  padding: 0;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .line__remove:hover {
-  opacity: 0.8;
+  background: var(--nav-hover);
+  opacity: 0.9;
+}
+
+.line__remove-icon {
+  width: 1.05rem;
+  height: 1.05rem;
 }
 
 .line__sum {
