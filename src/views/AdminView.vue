@@ -256,12 +256,7 @@ onUnmounted(stopPolling)
         @logout="logout"
         @set-status="setStatus"
       />
-      <AdminReports
-        v-else
-        :orders="orders"
-        :new-count="newCount"
-        :last-synced-at="lastSyncedAt"
-      />
+      <AdminReports v-else />
     </template>
   </div>
 </template>

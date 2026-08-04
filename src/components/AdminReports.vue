@@ -1,61 +1,58 @@
 <script setup>
-import { computed, ref } from 'vue'
-
-const props = defineProps({
-  orders: { type: Array, required: true },
-  newCount: { type: Number, required: true },
-  lastSyncedAt: { type: String, default: '' },
-})
+import { onMounted, ref, watch } from 'vue'
+import { fetchAdminReports } from '../services/moysklad'
 
 const dateFrom = ref('')
 const dateTo = ref('')
+const isLoading = ref(false)
+const error = ref('')
+const metrics = ref({
+  soldShipped: 0,
+  purchasedSupplies: 0,
+  stockTotal: 0,
+})
 
 function formatMoney(value) {
   if (!Number.isFinite(Number(value))) return '0 ₽'
   return `${Number(value).toLocaleString('ru-RU')} ₽`
 }
 
-function formatDate(value) {
+function formatDateRu(value) {
   if (!value) return '—'
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+}
+
+let fetchTimer = null
+
+async function loadReports() {
+  isLoading.value = true
+  error.value = ''
   try {
-    return new Intl.DateTimeFormat('ru-RU', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    }).format(new Date(value))
-  } catch {
-    return value
+    metrics.value = await fetchAdminReports({
+      fromDate: dateFrom.value,
+      toDate: dateTo.value,
+    })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Не удалось загрузить отчеты'
+  } finally {
+    isLoading.value = false
   }
 }
 
-const periodOrders = computed(() => {
-  const fromTs = dateFrom.value ? new Date(`${dateFrom.value}T00:00:00`).getTime() : null
-  const toTs = dateTo.value ? new Date(`${dateTo.value}T23:59:59`).getTime() : null
-
-  return props.orders.filter((order) => {
-    const ts = new Date(order.createdAt || '').getTime()
-    if (!Number.isFinite(ts)) return false
-    if (fromTs !== null && ts < fromTs) return false
-    if (toTs !== null && ts > toTs) return false
-    return true
-  })
+watch([dateFrom, dateTo], () => {
+  window.clearTimeout(fetchTimer)
+  fetchTimer = window.setTimeout(() => {
+    loadReports()
+  }, 200)
 })
 
-const newCountByPeriod = computed(
-  () => periodOrders.value.filter((order) => order.status === 'new').length,
-)
-const paidCount = computed(() => periodOrders.value.filter((order) => order.status === 'paid').length)
-const shippedCount = computed(
-  () => periodOrders.value.filter((order) => order.status === 'shipped').length,
-)
-const cancelledCount = computed(
-  () => periodOrders.value.filter((order) => order.status === 'cancelled').length,
-)
-const totalSum = computed(() =>
-  periodOrders.value.reduce((sum, order) => sum + (Number(order.total) || 0), 0),
-)
+onMounted(loadReports)
 </script>
 
 <template>
@@ -71,34 +68,31 @@ const totalSum = computed(() =>
         <input v-model="dateTo" type="date" />
       </label>
     </div>
+    <p class="muted period-view">
+      Период:
+      <strong>{{ formatDateRu(dateFrom) }}</strong>
+      —
+      <strong>{{ formatDateRu(dateTo) }}</strong>
+    </p>
     <div class="reports__grid">
       <article class="report-card">
-        <p class="muted">Всего заказов</p>
-        <strong>{{ periodOrders.length }}</strong>
+        <p class="muted">Продано литературы</p>
+        <strong>{{ formatMoney(metrics.soldShipped) }}</strong>
       </article>
       <article class="report-card">
-        <p class="muted">Новых</p>
-        <strong>{{ newCountByPeriod }}</strong>
+        <p class="muted">Закуплено</p>
+        <strong>{{ formatMoney(metrics.purchasedSupplies) }}</strong>
       </article>
       <article class="report-card">
-        <p class="muted">Оплачено</p>
-        <strong>{{ paidCount }}</strong>
-      </article>
-      <article class="report-card">
-        <p class="muted">Отгружено</p>
-        <strong>{{ shippedCount }}</strong>
-      </article>
-      <article class="report-card">
-        <p class="muted">Отменено</p>
-        <strong>{{ cancelledCount }}</strong>
-      </article>
-      <article class="report-card">
-        <p class="muted">Сумма заказов</p>
-        <strong>{{ formatMoney(totalSum) }}</strong>
+        <p class="muted">Остаток на складе</p>
+        <strong>{{ formatMoney(metrics.stockTotal) }}</strong>
       </article>
     </div>
-    <p class="muted reports__sync">
-      {{ lastSyncedAt ? `Обновлено: ${formatDate(lastSyncedAt)}` : 'Ожидание синхронизации…' }}
+    <p v-if="isLoading" class="muted reports__state">Считаем отчет…</p>
+    <p v-else-if="error" class="error reports__state">{{ error }}</p>
+    <p v-else class="muted reports__state">
+      Источник: МойСклад («Заказы покупателей», «Закупки - Приемки», «Остатки на складе»).
+      Остаток считается на конец даты «По».
     </p>
   </section>
 </template>
@@ -142,6 +136,15 @@ const totalSum = computed(() =>
   font: inherit;
 }
 
+.period-view {
+  margin: -0.2rem 0 0.9rem;
+  font-size: 0.88rem;
+}
+
+.period-view strong {
+  color: var(--ink);
+}
+
 .reports__grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -172,5 +175,13 @@ const totalSum = computed(() =>
 
 .reports__sync {
   margin: 0.9rem 0 0;
+}
+
+.reports__state {
+  margin: 0.9rem 0 0;
+}
+
+.error {
+  color: var(--danger-text);
 }
 </style>

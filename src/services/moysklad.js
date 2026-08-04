@@ -170,3 +170,28 @@ export async function updateAdminOrderStatus(id, status) {
 
   return data.order
 }
+
+export async function fetchAdminReports({ fromDate = '', toDate = '' } = {}) {
+  const url = new URL(`${getApiBase()}/api/admin/reports`, window.location.origin)
+  if (fromDate) url.searchParams.set('fromDate', fromDate)
+  if (toDate) url.searchParams.set('toDate', toDate)
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: adminHeaders(),
+    cache: 'no-store',
+  })
+
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось загрузить отчеты (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+
+  return {
+    soldShipped: Number(data?.metrics?.soldShipped) || 0,
+    purchasedSupplies: Number(data?.metrics?.purchasedSupplies) || 0,
+    stockTotal: Number(data?.metrics?.stockTotal) || 0,
+  }
+}

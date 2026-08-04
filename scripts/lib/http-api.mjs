@@ -16,6 +16,7 @@ import {
   listCustomerOrdersForAdmin,
 } from './list-customer-orders.mjs'
 import { fetchLiveStockMap } from './fetch-stock.mjs'
+import { getAdminReportMetrics } from './admin-reports.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
 
 export function sendJson(res, status, payload) {
@@ -239,6 +240,38 @@ export async function handleAdminOrders(req, res, pathname) {
   }
 }
 
+export async function handleAdminReports(req, res) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'GET, OPTIONS')
+    return
+  }
+
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    await loadEnvFromFile()
+    assertAdmin(req)
+
+    const url = new URL(req.url || '/api/admin/reports', 'http://localhost')
+    const fromDate = String(url.searchParams.get('fromDate') || '').trim()
+    const toDate = String(url.searchParams.get('toDate') || '').trim()
+    const metrics = await getAdminReportMetrics({ fromDate, toDate })
+
+    sendJson(res, 200, {
+      ok: true,
+      fromDate,
+      toDate,
+      metrics,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Admin reports failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
 /**
  * Returns true if the request was handled.
  */
@@ -255,6 +288,10 @@ export async function handleApiRequest(req, res) {
   }
   if (pathname === '/api/admin/orders' || pathname.startsWith('/api/admin/orders/')) {
     await handleAdminOrders(req, res, pathname)
+    return true
+  }
+  if (pathname === '/api/admin/reports') {
+    await handleAdminReports(req, res)
     return true
   }
   return false
