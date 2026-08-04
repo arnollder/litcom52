@@ -1,11 +1,14 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps({
   orders: { type: Array, required: true },
   newCount: { type: Number, required: true },
   lastSyncedAt: { type: String, default: '' },
 })
+
+const dateFrom = ref('')
+const dateTo = ref('')
 
 function formatMoney(value) {
   if (!Number.isFinite(Number(value))) return '0 ₽'
@@ -27,27 +30,55 @@ function formatDate(value) {
   }
 }
 
-const paidCount = computed(() => props.orders.filter((order) => order.status === 'paid').length)
-const shippedCount = computed(() => props.orders.filter((order) => order.status === 'shipped').length)
+const periodOrders = computed(() => {
+  const fromTs = dateFrom.value ? new Date(`${dateFrom.value}T00:00:00`).getTime() : null
+  const toTs = dateTo.value ? new Date(`${dateTo.value}T23:59:59`).getTime() : null
+
+  return props.orders.filter((order) => {
+    const ts = new Date(order.createdAt || '').getTime()
+    if (!Number.isFinite(ts)) return false
+    if (fromTs !== null && ts < fromTs) return false
+    if (toTs !== null && ts > toTs) return false
+    return true
+  })
+})
+
+const newCountByPeriod = computed(
+  () => periodOrders.value.filter((order) => order.status === 'new').length,
+)
+const paidCount = computed(() => periodOrders.value.filter((order) => order.status === 'paid').length)
+const shippedCount = computed(
+  () => periodOrders.value.filter((order) => order.status === 'shipped').length,
+)
 const cancelledCount = computed(
-  () => props.orders.filter((order) => order.status === 'cancelled').length,
+  () => periodOrders.value.filter((order) => order.status === 'cancelled').length,
 )
 const totalSum = computed(() =>
-  props.orders.reduce((sum, order) => sum + (Number(order.total) || 0), 0),
+  periodOrders.value.reduce((sum, order) => sum + (Number(order.total) || 0), 0),
 )
 </script>
 
 <template>
   <section class="panel reports">
     <h2>Отчеты</h2>
+    <div class="periods">
+      <label>
+        С
+        <input v-model="dateFrom" type="date" />
+      </label>
+      <label>
+        По
+        <input v-model="dateTo" type="date" />
+      </label>
+    </div>
     <div class="reports__grid">
       <article class="report-card">
         <p class="muted">Всего заказов</p>
-        <strong>{{ orders.length }}</strong>
+        <strong>{{ periodOrders.length }}</strong>
       </article>
       <article class="report-card">
         <p class="muted">Новых</p>
-        <strong>{{ newCount }}</strong>
+        <strong>{{ newCountByPeriod }}</strong>
       </article>
       <article class="report-card">
         <p class="muted">Оплачено</p>
@@ -86,6 +117,29 @@ const totalSum = computed(() =>
 
 .reports h2 {
   margin: 0 0 0.9rem;
+}
+
+.periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.periods label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.periods input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.45rem 0.6rem;
+  background: var(--inset);
+  color: var(--ink);
+  font: inherit;
 }
 
 .reports__grid {
