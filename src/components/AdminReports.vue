@@ -90,8 +90,8 @@ const totalSum = computed(() =>
 
 .reports__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.65rem;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
 }
 
 .report-card {
@@ -99,6 +99,10 @@ const totalSum = computed(() =>
   border-radius: 12px;
   padding: 0.75rem 0.85rem;
   background: var(--inset-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
 }
 
 .report-card p {
@@ -107,9 +111,9 @@ const totalSum = computed(() =>
 }
 
 .report-card strong {
-  margin-top: 0.35rem;
-  display: block;
+  display: inline-block;
   font-size: 1.1rem;
+  white-space: nowrap;
 }
 
 .reports__sync {
