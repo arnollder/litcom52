@@ -40,10 +40,11 @@ function inDateRange(momentValue, fromDate, toDate) {
   return true
 }
 
-async function sumCustomerOrdersShipped(fromDate, toDate) {
+async function sumCustomerOrdersSold(fromDate, toDate) {
   let offset = 0
   let total = 0
   const filter = buildMomentFilter(fromDate, toDate)
+  const soldStates = new Set(['Оплачен', 'Отгружен'])
 
   while (true) {
     const query = new URLSearchParams({
@@ -57,7 +58,7 @@ async function sumCustomerOrdersShipped(fromDate, toDate) {
     for (const row of rows) {
       // Keep strict filtering on our side to avoid API-side filter quirks.
       if (!inDateRange(row?.moment, fromDate, toDate)) continue
-      if (String(row?.state?.name || '').trim() !== 'Отгружен') continue
+      if (!soldStates.has(String(row?.state?.name || '').trim())) continue
       total += (Number(row?.sum) || 0) / 100
     }
     if (rows.length < PAGE_SIZE) break
@@ -91,7 +92,7 @@ async function sumSupplies(fromDate, toDate) {
   return total
 }
 
-async function sumStockAndReserve() {
+async function sumStockValue() {
   let offset = 0
   let totalStockValue = 0
 
@@ -104,12 +105,11 @@ async function sumStockAndReserve() {
     const data = await moyskladFetch(`/entity/assortment?${query.toString()}`)
     const rows = Array.isArray(data?.rows) ? data.rows : []
     for (const row of rows) {
-      // "Склад - Остатки" в рублях: (stock + reserve) * цена.
+      // Actual warehouse stock only (without reserve).
       const stock = Math.max(0, Number(row?.stock) || 0)
-      const reserve = Math.max(0, Number(row?.reserve) || 0)
       const priceKopecks = Number(row?.salePrices?.[0]?.value)
       const unitPriceRub = Number.isFinite(priceKopecks) ? priceKopecks / 100 : 0
-      totalStockValue += (stock + reserve) * unitPriceRub
+      totalStockValue += stock * unitPriceRub
     }
     if (rows.length < PAGE_SIZE) break
     offset += rows.length
@@ -121,18 +121,18 @@ async function sumStockAndReserve() {
 function stockValueFromRows(rows) {
   let total = 0
   for (const row of rows) {
+    // Actual warehouse stock only (without reserve).
     const stock = Math.max(0, Number(row?.stock) || 0)
-    const reserve = Math.max(0, Number(row?.reserve) || 0)
     const priceKopecks = Number(row?.salePrice || row?.price || row?.salePrices?.[0]?.value)
     const unitPriceRub = Number.isFinite(priceKopecks) ? priceKopecks / 100 : 0
-    total += (stock + reserve) * unitPriceRub
+    total += stock * unitPriceRub
   }
   return total
 }
 
-async function sumStockAndReserveAtPeriodEnd(toDate) {
+async function sumStockAtPeriodEnd(toDate) {
   if (!toDate) {
-    return sumStockAndReserve()
+    return sumStockValue()
   }
 
   const moment = toMomentEnd(toDate)
@@ -158,9 +158,9 @@ async function sumStockAndReserveAtPeriodEnd(toDate) {
 
 export async function getAdminReportMetrics({ fromDate = '', toDate = '' } = {}) {
   // Run sequentially: parallel pages easily hit MoySklad concurrent request limits (429/1073).
-  const soldShipped = await sumCustomerOrdersShipped(fromDate, toDate)
+  const soldShipped = await sumCustomerOrdersSold(fromDate, toDate)
   const purchasedSupplies = await sumSupplies(fromDate, toDate)
-  const stockTotal = await sumStockAndReserveAtPeriodEnd(toDate)
+  const stockTotal = await sumStockAtPeriodEnd(toDate)
 
   return {
     soldShipped,

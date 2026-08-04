@@ -106,7 +106,7 @@ onMounted(loadReports)
     <p v-else-if="error" class="error reports__state">{{ error }}</p>
     <p v-else class="muted reports__state">
       Источник: МойСклад («Заказы покупателей», «Закупки - Приемки», «Остатки на складе»).
-      Остаток считается на конец даты «По».
+      Продано: статусы «Оплачен» и «Отгружен». Остаток: фактический stock на конец даты «По», без резерва.
     </p>
   </section>
 </template>
