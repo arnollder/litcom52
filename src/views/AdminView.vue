@@ -159,6 +159,7 @@ const statusLabel = {
 
 function startPolling() {
   stopPolling()
+  if (activeSection.value !== 'orders') return
   pollTimer = window.setInterval(() => loadOrders({ silent: true }), POLL_MS)
 }
 
@@ -170,14 +171,24 @@ function stopPolling() {
 }
 
 watch(isAuthed, (value) => {
-  if (value) startPolling()
+  if (value && activeSection.value === 'orders') startPolling()
   else stopPolling()
+})
+
+watch(activeSection, (section) => {
+  if (!isAuthed.value) return
+  if (section === 'orders') {
+    startPolling()
+  } else {
+    // Stop order polling while reports run so MoySklad queue is not starved.
+    stopPolling()
+  }
 })
 
 onMounted(() => {
   if (isAuthed.value) {
     loadOrders()
-    startPolling()
+    if (activeSection.value === 'orders') startPolling()
   }
 })
 

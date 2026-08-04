@@ -112,7 +112,11 @@ export async function listCustomerOrdersForAdmin({ limit = DEFAULT_LIMIT } = {})
     offset += chunk.length
   }
 
-  const orders = await Promise.all(rows.map((row) => mapCustomerOrderToAdmin(row)))
+  const orders = []
+  for (const row of rows) {
+    // Sequential mapping avoids bursting dozens of position fetches into the MoySklad queue.
+    orders.push(await mapCustomerOrderToAdmin(row))
+  }
 
   return {
     orders,

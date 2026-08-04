@@ -51,37 +51,98 @@ export function getBaseUrl() {
   return (process.env.MOYSKLAD_BASE_URL || 'https://api.moysklad.ru/api/remap/1.2').replace(/\/+$/, '')
 }
 
+const MAX_RETRIES = 5
+const BASE_RETRY_MS = 400
+const REQUEST_TIMEOUT_MS = 30000
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRateLimitError(status, data) {
+  if (status === 429) return true
+  const errors = Array.isArray(data?.errors) ? data.errors : []
+  return errors.some((item) => Number(item?.code) === 1073)
+}
+
+// Serialize MoySklad calls process-wide to stay under concurrent request limits.
+let moyskladQueue = Promise.resolve()
+
 export async function moyskladFetch(pathname, options = {}) {
-  await loadEnvFromFile()
-  const authHeader = getAuthHeader()
-  const baseUrl = getBaseUrl()
-  const url = pathname.startsWith('http') ? pathname : `${baseUrl}${pathname}`
+  const run = async () => {
+    await loadEnvFromFile()
+    const authHeader = getAuthHeader()
+    const baseUrl = getBaseUrl()
+    const url = pathname.startsWith('http') ? pathname : `${baseUrl}${pathname}`
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      Authorization: authHeader,
-      Accept: 'application/json;charset=utf-8',
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  })
+    let lastError = null
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+      let response
+      try {
+        response = await fetch(url, {
+          ...options,
+          signal: controller.signal,
+          headers: {
+            Authorization: authHeader,
+            Accept: 'application/json;charset=utf-8',
+            'Content-Type': 'application/json',
+            ...(options.headers || {}),
+          },
+        })
+      } catch (err) {
+        clearTimeout(timeoutId)
+        const aborted = err?.name === 'AbortError'
+        const error = new Error(
+          aborted
+            ? `MoySklad timeout after ${REQUEST_TIMEOUT_MS}ms`
+            : err instanceof Error
+              ? err.message
+              : 'MoySklad network error',
+        )
+        error.status = aborted ? 504 : 502
+        lastError = error
+        if (attempt === MAX_RETRIES) throw error
+        await sleep(BASE_RETRY_MS * 2 ** attempt)
+        continue
+      }
+      clearTimeout(timeoutId)
 
-  const text = await response.text()
-  let data = null
-  try {
-    data = text ? JSON.parse(text) : null
-  } catch {
-    data = { raw: text }
+      const text = await response.text()
+      let data = null
+      try {
+        data = text ? JSON.parse(text) : null
+      } catch {
+        data = { raw: text }
+      }
+
+      if (response.ok) return data
+
+      const details = typeof data === 'object' ? JSON.stringify(data) : String(text)
+      const error = new Error(`MoySklad ${response.status}: ${details}`)
+      error.status = response.status
+      error.payload = data
+      lastError = error
+
+      if (!isRateLimitError(response.status, data) || attempt === MAX_RETRIES) {
+        throw error
+      }
+
+      const retryAfterHeader = Number(response.headers.get('retry-after'))
+      const waitMs = Number.isFinite(retryAfterHeader) && retryAfterHeader > 0
+        ? retryAfterHeader * 1000
+        : BASE_RETRY_MS * 2 ** attempt
+      await sleep(waitMs)
+    }
+
+    throw lastError || new Error('MoySklad request failed')
   }
 
-  if (!response.ok) {
-    const details = typeof data === 'object' ? JSON.stringify(data) : String(text)
-    const error = new Error(`MoySklad ${response.status}: ${details}`)
-    error.status = response.status
-    error.payload = data
-    throw error
-  }
-
-  return data
+  const queued = moyskladQueue.then(run, run)
+  moyskladQueue = queued.then(
+    () => undefined,
+    () => undefined,
+  )
+  return queued
 }

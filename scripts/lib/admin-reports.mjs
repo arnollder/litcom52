@@ -157,11 +157,10 @@ async function sumStockAndReserveAtPeriodEnd(toDate) {
 }
 
 export async function getAdminReportMetrics({ fromDate = '', toDate = '' } = {}) {
-  const [soldShipped, purchasedSupplies, stockTotal] = await Promise.all([
-    sumCustomerOrdersShipped(fromDate, toDate),
-    sumSupplies(fromDate, toDate),
-    sumStockAndReserveAtPeriodEnd(toDate),
-  ])
+  // Run sequentially: parallel pages easily hit MoySklad concurrent request limits (429/1073).
+  const soldShipped = await sumCustomerOrdersShipped(fromDate, toDate)
+  const purchasedSupplies = await sumSupplies(fromDate, toDate)
+  const stockTotal = await sumStockAndReserveAtPeriodEnd(toDate)
 
   return {
     soldShipped,

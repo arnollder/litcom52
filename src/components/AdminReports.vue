@@ -2,8 +2,17 @@
 import { onMounted, ref, watch } from 'vue'
 import { fetchAdminReports } from '../services/moysklad'
 
-const dateFrom = ref('')
-const dateTo = ref('')
+function toIsoDate(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+const today = new Date()
+const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+const dateFrom = ref(toIsoDate(monthStart))
+const dateTo = ref(toIsoDate(today))
 const isLoading = ref(false)
 const error = ref('')
 const metrics = ref({
@@ -29,19 +38,24 @@ function formatDateRu(value) {
 }
 
 let fetchTimer = null
+let loadSeq = 0
 
 async function loadReports() {
+  const seq = ++loadSeq
   isLoading.value = true
   error.value = ''
   try {
-    metrics.value = await fetchAdminReports({
+    const nextMetrics = await fetchAdminReports({
       fromDate: dateFrom.value,
       toDate: dateTo.value,
     })
+    if (seq !== loadSeq) return
+    metrics.value = nextMetrics
   } catch (err) {
+    if (seq !== loadSeq) return
     error.value = err instanceof Error ? err.message : 'Не удалось загрузить отчеты'
   } finally {
-    isLoading.value = false
+    if (seq === loadSeq) isLoading.value = false
   }
 }
 
@@ -49,7 +63,7 @@ watch([dateFrom, dateTo], () => {
   window.clearTimeout(fetchTimer)
   fetchTimer = window.setTimeout(() => {
     loadReports()
-  }, 200)
+  }, 500)
 })
 
 onMounted(loadReports)
