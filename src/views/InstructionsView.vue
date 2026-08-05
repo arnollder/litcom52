@@ -15,7 +15,7 @@ import { RouterLink } from 'vue-router'
       <li>
         Получить заказ можно после объявления в чате от кладовщика.
       </li>
-      </li>
+      
     </ol>
 
     <section class="panel reveal reveal-delay-2">
