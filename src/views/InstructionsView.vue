@@ -24,10 +24,10 @@ import { RouterLink } from 'vue-router'
         г. Нижний Новгород, ул. Ванеева, д. 15/34
 
       </p>
-      <ul>
+      
         <li>группа «Выбор»</li>
-        <li>рабочее собрание литкома — каждое первое воскресенье месяца в 15:00 в помещении группы "Анте2"</li>
-      </ul>
+        
+     
     </section>
 
     <section class="notes reveal reveal-delay-3">
