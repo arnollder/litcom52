@@ -43,12 +43,19 @@ import { RouterLink } from 'vue-router'
       </li>
       
       <li class="steps__item">
-        <span class="steps__num">03</span>
+        <span class="steps__num">02</span>
         <div>
           <h3>Ожидаете сообщения от кладовщика о готовности заказа к выдаче. </h3>
           <p class="muted">
             Выдача: г. Нижний Новгород, ул. Ванеева, д. 15/34 (группа Выбор).
           </p>
+        </div>
+      </li>
+      <li class="steps__item">
+        <span class="steps__num">03</span>
+        <div>
+          <h3>В каталоге нет фотографий и описаний товаров — всё это можно посмотреть на сайте магазина РЗФ, откуда производятся закупки </h3>
+          
         </div>
       </li>
     </ol>
