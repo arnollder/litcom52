@@ -51,21 +51,7 @@ import { RouterLink } from 'vue-router'
           </p>
         </div>
       </li>
-      <li class="steps__item">
-        <span class="steps__num">03</span>
-        <div>
-          <h3>В каталоге нет фотографий и описаний товаров — всё это можно посмотреть
-        <a href="https://lit-na.ru/" target="_blank" rel="noreferrer">на сайте магазина РЗФ</a>,
-        откуда производятся закупки.</h3>
-        </div>
-        </li>
-      <li class="steps__item">
-        <span class="steps__num">04</span>
-        <div>
-          <h3>Для заказа плакатов, сувенирных медалей или других товаров, отсутствующих в каталоге,
-        обратитесь лично к кладовщику.</h3>    
-        </div>
-      </li>
+      
     </ol>
   </section>
 
