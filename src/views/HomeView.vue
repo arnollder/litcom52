@@ -13,13 +13,13 @@ import { RouterLink } from 'vue-router'
     </div>
 
     <div class="container hero__content">
-      <p class="hero__brand display reveal">ЛИТКОМ-НН</p>
+      <p class="hero__brand display reveal">ЛИТКОМ-М52</p>
       <h1 class="hero__title display reveal reveal-delay-1">
         Магазинчик литературы сообщества
       </h1>
       <p class="hero__lead muted reveal reveal-delay-2">
-        Заказ литературы Сообщества АН Нижнего Новгорода — без наценки, для
-        групп и членов местности.
+        Заказ литературы Сообщества АН М52  для
+        групп.
       </p>
       <div class="hero__cta reveal reveal-delay-3">
         <RouterLink class="btn btn-primary" to="/shop">Перейти в каталог</RouterLink>
