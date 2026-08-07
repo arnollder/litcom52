@@ -25,7 +25,9 @@ import { RouterLink } from 'vue-router'
 
       </p>
       
-        <li>группа «Выбор»</li>
+      <p>группа «Выбор»
+        
+      </p> 
         
      
     </section>
