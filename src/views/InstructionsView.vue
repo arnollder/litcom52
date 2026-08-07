@@ -50,7 +50,7 @@ import { RouterLink } from 'vue-router'
       </p>
       <p>
         Подробнее о литкоме —
-        <a href="https://аннн.рф/komiteti/litkom" target="_blank" rel="noreferrer">на сайте АН НН</a>.
+        <a href="https://аннн.рф/komiteti/litkom" target="_blank" rel="noreferrer">на сайте АН М52</a>.
       </p>
       <p class="thanks">Спасибо!</p>
     </section>
