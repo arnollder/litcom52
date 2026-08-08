@@ -6,7 +6,7 @@ const year = new Date().getFullYear()
   <footer class="footer">
     <div class="container footer__inner">
       <div>
-        <div class="footer__brand display">ЛИТКОМ-НН</div>
+        <div class="footer__brand display">ЛИТКОМ-M52</div>
         <p class="muted">
           Система заказа литературы Сообщества АН Нижнего Новгорода.
         </p>
