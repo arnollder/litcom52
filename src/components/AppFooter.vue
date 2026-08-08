@@ -14,7 +14,7 @@ const year = new Date().getFullYear()
       <div class="footer__links">
         <a href="https://lit-na.ru/" target="_blank" rel="noreferrer">Магазин РЗФ</a>
         <a href="https://аннн.рф/" target="_blank" rel="noreferrer">АН Нижний Новгород</a>
-        <a href="https://аннн.рф/komiteti/litkom" target="_blank" rel="noreferrer">Литком</a>
+        <a href="https://аннн.рф/komiteti/litkom" target="_blank" rel="noreferrer">Литком-М52</a>
       </div>
       <p class="footer__note muted">
         © {{ year }} · сайт-витрина для местности · цены без наценки

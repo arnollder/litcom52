@@ -51,7 +51,13 @@ import { RouterLink } from 'vue-router'
           </p>
         </div>
       </li>
-      
+      <li class="steps__item">
+        <span class="steps__num">03</span>
+        <div>
+          <h3>Рабочие собрания литературного подкомитета проходят каждое первое воскресенье месяца в 15:00 в помещении группы Антей</h3>
+          
+        </div>
+      </li>
     </ol>
   </section>
 
