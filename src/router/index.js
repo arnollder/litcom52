@@ -8,30 +8,30 @@ import AdminView from '../views/AdminView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'home', component: HomeView, meta: { title: 'Литком НН' } },
+    { path: '/', name: 'home', component: HomeView, meta: { title: 'Литком-М52' } },
     {
       path: '/instructions',
       name: 'instructions',
       component: InstructionsView,
-      meta: { title: 'Инструкция — Литком НН' },
+      meta: { title: 'Инструкция — Литком-М52' },
     },
     {
       path: '/shop',
       name: 'shop',
       component: ShopView,
-      meta: { title: 'Каталог — Литком НН' },
+      meta: { title: 'Каталог — Литком-М52' },
     },
     {
       path: '/checkout',
       name: 'checkout',
       component: CheckoutView,
-      meta: { title: 'Оформление — Литком НН' },
+      meta: { title: 'Оформление — Литком-М52' },
     },
     {
       path: '/admin',
       name: 'admin',
       component: AdminView,
-      meta: { title: 'Админка — Литком НН', hideChrome: true },
+      meta: { title: 'Админка — Литком-М52', hideChrome: true },
     },
   ],
   scrollBehavior() {
@@ -40,7 +40,7 @@ const router = createRouter({
 })
 
 router.afterEach((to) => {
-  document.title = to.meta.title || 'Литком НН'
+  document.title = to.meta.title || 'Литком-М52'
 })
 
 export default router

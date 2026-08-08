@@ -13,13 +13,13 @@ import { RouterLink } from 'vue-router'
     </div>
 
     <div class="container hero__content">
-      <p class="hero__brand display reveal">ЛИТКОМ-НН</p>
+      <p class="hero__brand display reveal">ЛИТКОМ-М52</p>
       <h1 class="hero__title display reveal reveal-delay-1">
         Магазинчик литературы сообщества
       </h1>
       <p class="hero__lead muted reveal reveal-delay-2">
-        Заказ литературы Сообщества АН Нижнего Новгорода — без наценки, для
-        групп и членов местности.
+        Заказ литературы Сообщества АН М52 для
+        групп.
       </p>
       <div class="hero__cta reveal reveal-delay-3">
         <RouterLink class="btn btn-primary" to="/shop">Перейти в каталог</RouterLink>
@@ -37,25 +37,25 @@ import { RouterLink } from 'vue-router'
       <li class="steps__item">
         <span class="steps__num">01</span>
         <div>
-          <h3>Собираете корзину</h3>
+          <h3>Собираете корзину и оплачиваете заказ</h3>
           <p class="muted">В любое время выбираете книги, брелоки, буклеты и IP.</p>
         </div>
       </li>
+      
       <li class="steps__item">
         <span class="steps__num">02</span>
         <div>
-          <h3>Подтверждение в чате</h3>
-          <p class="muted">Оператор сверяет заказы и публикует реквизиты в чате литкома.</p>
+          <h3>Ожидаете сообщения от кладовщика о готовности заказа к выдаче. </h3>
+          <p class="muted">
+            Выдача: г. Нижний Новгород, ул. Ванеева, д. 15/34 (группа "Выбор").
+          </p>
         </div>
       </li>
       <li class="steps__item">
         <span class="steps__num">03</span>
         <div>
-          <h3>Оплата и выдача</h3>
-          <p class="muted">
-            Получение: ул. Канавинская 2а, офис №5 (группа «Антей»). Рабочие
-            собрания литкома — каждое первое воскресенье месяца.
-          </p>
+          <h3>Рабочие собрания литературного подкомитета проходят каждое первое воскресенье месяца в 15:00 в помещении группы Антей</h3>
+          
         </div>
       </li>
     </ol>
