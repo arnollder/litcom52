@@ -18,7 +18,7 @@ import { RouterLink } from 'vue-router'
         Магазинчик литературы сообщества
       </h1>
       <p class="hero__lead muted reveal reveal-delay-2">
-        Заказ литературы Сообщества АН М52  для
+        Заказ литературы Сообщества АН М52 для
         групп.
       </p>
       <div class="hero__cta reveal reveal-delay-3">
