@@ -1,5 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <rect width="64" height="64" rx="14" fill="#07110c"/>
-  <path d="M18 46V18h8.2c6.8 0 11 3.6 11 9.2 0 5.7-4.2 9.3-11 9.3H26.4V46H18zm8.4-15.2c2.9 0 4.6-1.5 4.6-4s-1.7-4-4.6-4H26.4v8z" fill="#3ecf8e"/>
-  <path d="M42 18h7.2v28H42V18z" fill="#9af0c4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="mark" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#9af0c4"/>
+      <stop offset="100%" stop-color="#1f8f5c"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="20" fill="url(#mark)"/>
+  <text
+    x="32"
+    y="34"
+    text-anchor="middle"
+    dominant-baseline="middle"
+    font-family="Unbounded, 'Segoe UI', system-ui, sans-serif"
+    font-weight="700"
+    font-size="36"
+    fill="#04120b"
+  >Л</text>
 </svg>
