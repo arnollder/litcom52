@@ -77,6 +77,11 @@ async function fetchPaged(baseUrl, authHeader, endpoint) {
   return rows
 }
 
+function hasBuyerTag(row) {
+  const tags = Array.isArray(row?.tags) ? row.tags : []
+  return tags.some((tag) => String(tag || '').trim().toLowerCase() === 'покупатель')
+}
+
 function normalizeCounterparty(row) {
   const phone = row?.phone?.trim?.() || ''
   const email = row?.email?.trim?.() || ''
@@ -100,6 +105,7 @@ async function main() {
   const rows = await fetchPaged(baseUrl, authHeader, '/entity/counterparty')
 
   const normalized = rows
+    .filter((row) => row && !row.archived && hasBuyerTag(row))
     .map(normalizeCounterparty)
     .filter((item) => item.id && item.name)
     .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
@@ -108,6 +114,7 @@ async function main() {
   const payload = {
     updatedAt: new Date().toISOString(),
     source: 'moysklad',
+    filter: 'tag:покупатель',
     rows: deduped,
   }
 
@@ -116,9 +123,9 @@ async function main() {
   const distPath = resolve(ROOT_DIR, 'dist/counterparties.json')
   try {
     await writeFile(distPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
-    console.log(`Counterparties synced: ${deduped.length} -> public/counterparties.json + dist/counterparties.json`)
+    console.log(`Counterparties synced: ${deduped.length} buyers -> public/counterparties.json + dist/counterparties.json`)
   } catch {
-    console.log(`Counterparties synced: ${deduped.length} -> public/counterparties.json`)
+    console.log(`Counterparties synced: ${deduped.length} buyers -> public/counterparties.json`)
   }
 }
 
