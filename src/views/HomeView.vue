@@ -1,5 +1,6 @@
 <script setup>
 import { RouterLink } from 'vue-router'
+import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
 </script>
 
 <template>
@@ -10,6 +11,10 @@ import { RouterLink } from 'vue-router'
       <div class="hero__book hero__book--b" />
       <div class="hero__book hero__book--c" />
       <div class="hero__leaf" />
+    </div>
+
+    <div class="container hero__meeting reveal">
+      <NextCommitteeMeeting />
     </div>
 
     <div class="container hero__content">
@@ -153,6 +158,19 @@ import { RouterLink } from 'vue-router'
   border-radius: 60% 40% 55% 45%;
   background: radial-gradient(circle at 30% 30%, var(--hero-leaf), transparent 65%);
   filter: blur(2px);
+}
+
+.hero__meeting {
+  position: absolute;
+  top: 1.15rem;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero__meeting :deep(.next-meeting) {
+  pointer-events: auto;
 }
 
 .hero__content {
