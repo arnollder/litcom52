@@ -30,7 +30,7 @@ function close() {
         <span class="brand__mark" aria-hidden="true">Л</span>
         <span class="brand__text">
           <strong>ЛИТКОМ</strong>
-          <em>M52</em>
+          <em>М52</em>
         </span>
       </RouterLink>
 

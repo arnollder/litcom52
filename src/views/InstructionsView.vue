@@ -11,21 +11,19 @@ import { RouterLink } from 'vue-router'
 
     <ol class="rules reveal reveal-delay-1">
       <li>Вы можете оформить заказ в любое удобное время.</li>
-      
       <li>
         Получить заказ можно после объявления в чате от кладовщика.
       </li>
-      
     </ol>
 
     <section class="panel reveal reveal-delay-2">
       <h2 class="display">Выдача</h2>
-      <p>
-        г. Нижний Новгород, ул. Ванеева, д. 15/34
-      </p>
-            <p>группа «Выбор»</p> 
-        
-         </section>
+      <p>г. Нижний Новгород, ул. Ванеева, д. 15/34</p>
+      <ul>
+        <li>группа «Выбор»</li>
+        <li>точное время выдачи — по объявлению в чате литкома</li>
+      </ul>
+    </section>
 
     <section class="notes reveal reveal-delay-3">
       <p>
