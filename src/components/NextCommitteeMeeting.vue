@@ -37,7 +37,7 @@ const dateTimeLabel = computed(() => {
     year: 'numeric',
   }).format(date)
   const time = `${String(MEETING_HOUR).padStart(2, '0')}:${String(MEETING_MINUTE).padStart(2, '0')}`
-  return `${dayMonth}, ${time}`
+  return `${dayMonth} в ${time}`
 })
 </script>
 
