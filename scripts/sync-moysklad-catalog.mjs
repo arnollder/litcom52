@@ -95,6 +95,24 @@ function compareCategoriesByMoySkladOrder(a, b) {
   return a.raw.localeCompare(b.raw, 'ru')
 }
 
+/** Same idea as MoySklad «сортировка по коду»: 02БР01…02БР18, 04ИП01…04ИП30. */
+function compareProductsByCode(a, b) {
+  const codeA = String(a.code || '').trim()
+  const codeB = String(b.code || '').trim()
+  if (codeA && codeB) {
+    const byCode = codeA.localeCompare(codeB, 'ru', { numeric: true, sensitivity: 'base' })
+    if (byCode !== 0) return byCode
+  } else if (codeA && !codeB) {
+    return -1
+  } else if (!codeA && codeB) {
+    return 1
+  }
+  return String(a.name || '').localeCompare(String(b.name || ''), 'ru', {
+    numeric: true,
+    sensitivity: 'base',
+  })
+}
+
 function categoryNameFromItem(item, categoryByHref) {
   const href = item.productFolder?.meta?.href
   if (href && categoryByHref.has(href)) return categoryByHref.get(href)
@@ -168,6 +186,7 @@ function buildCatalog(categories, assortment, existingCatalog) {
       name: item.name,
       price: parsePrice(item),
       stock: parseStock(item),
+      code: typeof item.code === 'string' ? item.code.trim() : '',
     })
   }
 
@@ -180,7 +199,9 @@ function buildCatalog(categories, assortment, existingCatalog) {
     .sort((a, b) => compareCategoriesByMoySkladOrder(a.sortKey, b.sortKey))
     .map(({ rawCategory, products }) => ({
       category: stripCategoryNumber(rawCategory),
-      products: products.sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+      products: products
+        .sort(compareProductsByCode)
+        .map(({ code: _code, ...product }) => product),
     }))
 
   return {
