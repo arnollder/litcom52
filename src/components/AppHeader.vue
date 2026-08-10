@@ -10,7 +10,6 @@ const open = ref(false)
 
 const links = [
   { to: '/', label: 'Главная' },
-  { to: '/instructions', label: 'Инструкция' },
   { to: '/shop', label: 'Каталог' },
 ]
 

@@ -23,7 +23,6 @@ import { RouterLink } from 'vue-router'
       </p>
       <div class="hero__cta reveal reveal-delay-3">
         <RouterLink class="btn btn-primary" to="/shop">Перейти в каталог</RouterLink>
-        <RouterLink class="btn btn-ghost" to="/instructions">Читать инструкцию</RouterLink>
       </div>
     </div>
   </section>
@@ -31,7 +30,7 @@ import { RouterLink } from 'vue-router'
   <section class="section container">
     <div class="section__head reveal">
       <h2 class="display">Как это устроено</h2>
-      <p class="muted">Коротко о цикле заказа — подробности на странице инструкции.</p>
+      <p class="muted">Коротко о цикле заказа.</p>
     </div>
     <ol class="steps">
       <li class="steps__item">
