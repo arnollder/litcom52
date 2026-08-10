@@ -28,7 +28,6 @@ import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
       </p>
       <div class="hero__cta reveal reveal-delay-3">
         <RouterLink class="btn btn-primary" to="/shop">Перейти в каталог</RouterLink>
-        <RouterLink class="btn btn-ghost" to="/instructions">Читать инструкцию</RouterLink>
       </div>
     </div>
   </section>
@@ -36,7 +35,7 @@ import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
   <section class="section container">
     <div class="section__head reveal">
       <h2 class="display">Как это устроено</h2>
-      <p class="muted">Коротко о цикле заказа — подробности на странице инструкции.</p>
+      <p class="muted">Коротко о цикле заказа.</p>
     </div>
     <ol class="steps">
       <li class="steps__item">
@@ -50,20 +49,39 @@ import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
       <li class="steps__item">
         <span class="steps__num">02</span>
         <div>
+<<<<<<< HEAD
           <h3>Ожидаете сообщения от кладовщика о готовности заказа к выдаче.</h3>
           <p class="muted">
             Выдача: г. Нижний Новгород, ул. Ванеева, д. 15/34 (группа «Выбор»).
+=======
+          <h3>Ожидаете сообщения от кладовщика о готовности заказа к выдаче. </h3>
+          <p class="muted">
+            Выдача: г. Нижний Новгород, ул. Ванеева, д. 15/34 (группа Выбор).
+>>>>>>> mybranch
           </p>
         </div>
       </li>
       <li class="steps__item">
         <span class="steps__num">03</span>
         <div>
+<<<<<<< HEAD
           <h3>Рабочие собрания</h3>
           <p class="muted">
             Литературный подкомитет собирается каждое первое воскресенье месяца в
             15:00 в помещении группы «Антей».
           </p>
+=======
+          <h3>В каталоге нет фотографий и описаний товаров — всё это можно посмотреть
+        <a href="https://lit-na.ru/" target="_blank" rel="noreferrer">на сайте магазина РЗФ</a>,
+        откуда производятся закупки.</h3>
+        </div>
+        </li>
+      <li class="steps__item">
+        <span class="steps__num">04</span>
+        <div>
+          <h3>Для заказа плакатов, сувенирных медалей или других товаров, отсутствующих в каталоге,
+        обратитесь лично к кладовщику.</h3>    
+>>>>>>> mybranch
         </div>
       </li>
     </ol>

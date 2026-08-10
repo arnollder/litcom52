@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import InstructionsView from '../views/InstructionsView.vue'
 import ShopView from '../views/ShopView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
 import AdminView from '../views/AdminView.vue'
@@ -9,12 +8,6 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'home', component: HomeView, meta: { title: 'Литком-М52' } },
-    {
-      path: '/instructions',
-      name: 'instructions',
-      component: InstructionsView,
-      meta: { title: 'Инструкция — Литком-М52' },
-    },
     {
       path: '/shop',
       name: 'shop',
