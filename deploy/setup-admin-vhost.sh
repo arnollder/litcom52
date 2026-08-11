@@ -24,27 +24,37 @@ ln -sfn "$AVAIL" "$ENABLED"
 
 # Point store /admin to the admin host (idempotent snippet).
 STORE_CONF="/etc/nginx/sites-available/litkom-m52.ru"
-if [[ -f "$STORE_CONF" ]] && ! grep -q 'admin.litkom-m52.ru/admin' "$STORE_CONF"; then
+if [[ -f "$STORE_CONF" ]] && ! grep -q 'admin.litkom-m52.ru/\$\|admin.litkom-m52.ru/;' "$STORE_CONF"; then
   echo "==> add /admin redirect on store vhost"
   python3 - <<'PY'
 from pathlib import Path
 path = Path("/etc/nginx/sites-available/litkom-m52.ru")
 text = path.read_text()
+# Normalize any previous /admin → admin host /admin redirects to bare origin.
+text = text.replace(
+    "return 301 https://admin.litkom-m52.ru/admin;",
+    "return 301 https://admin.litkom-m52.ru/;",
+)
+text = text.replace(
+    "return 301 https://admin.litkom-m52.ru$request_uri;",
+    "return 301 https://admin.litkom-m52.ru/;",
+)
 needle = "    location / {\n        proxy_pass http://127.0.0.1:4173;"
 insert = """    location = /admin {
-        return 301 https://admin.litkom-m52.ru/admin;
+        return 301 https://admin.litkom-m52.ru/;
     }
 
     location /admin/ {
-        return 301 https://admin.litkom-m52.ru$request_uri;
+        return 301 https://admin.litkom-m52.ru/;
     }
 
     location / {
         proxy_pass http://127.0.0.1:4173;"""
-if needle not in text:
-    raise SystemExit("store nginx conf shape unexpected; add /admin redirects manually")
-# Only patch the first (HTTPS) server block occurrence.
-path.write_text(text.replace(needle, insert, 1))
+if "location = /admin" not in text:
+    if needle not in text:
+        raise SystemExit("store nginx conf shape unexpected; add /admin redirects manually")
+    text = text.replace(needle, insert, 1)
+path.write_text(text)
 print("patched", path)
 PY
 fi
@@ -64,5 +74,5 @@ fi
 
 echo "==> checks"
 curl -sS -o /dev/null -w "http:%{http_code} %{url_effective}\n" --connect-timeout 10 "http://${DOMAIN}/" || true
-curl -sS -o /dev/null -w "https:%{http_code}\n" --connect-timeout 10 "https://${DOMAIN}/admin" || true
-echo "Admin vhost OK → https://${DOMAIN}/admin"
+curl -sS -o /dev/null -w "https:%{http_code}\n" --connect-timeout 10 "https://${DOMAIN}/" || true
+echo "Admin vhost OK → https://${DOMAIN}/"

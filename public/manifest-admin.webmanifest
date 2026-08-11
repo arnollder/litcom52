@@ -1,9 +1,9 @@
 {
-  "id": "/admin?app=litcom-admin-v1",
+  "id": "/?app=litcom-admin-v2",
   "name": "Админка М52",
   "short_name": "Админка М52",
   "description": "Админка М52 — заказы покупателей МойСклад.",
-  "start_url": "/admin",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

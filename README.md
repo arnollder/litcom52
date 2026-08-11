@@ -20,7 +20,7 @@ npm run dev
 Сборка: `npm run build`. Продакшен на VPS: `npm run build && npm start`.
 
 Прод: [https://litkom-m52.ru/](https://litkom-m52.ru/) (`root@62.113.110.31`, каталог `/opt/litcom52`).
-Админка: [https://admin.litkom-m52.ru/admin](https://admin.litkom-m52.ru/admin) (отдельный поддомен и PWA).
+Админка: [https://admin.litkom-m52.ru/](https://admin.litkom-m52.ru/) (отдельный поддомен и PWA).
 
 Деплой с локальной машины:
 
@@ -136,7 +136,7 @@ journalctl -u litcom52-sync.service -n 50 --no-pager
 
 ## Админка заказов
 
-Прод-URL: [https://admin.litkom-m52.ru/admin](https://admin.litkom-m52.ru/admin).
+Прод-URL: [https://admin.litkom-m52.ru/](https://admin.litkom-m52.ru/).
 На основном домене `/admin` редиректит на поддомен. Отдельный PWA-манифест — можно установить админку рядом с магазином.
 
 Страница — зеркало раздела «Заказы покупателей» в МойСклад.
@@ -164,4 +164,4 @@ npm start
 - `/` — главная
 - `/shop` — каталог и корзина
 - `/checkout` — оформление с выбором контрагента и резервом в МойСклад
-- `https://admin.litkom-m52.ru/admin` — админка входящих заказов
+- `https://admin.litkom-m52.ru/` — админка входящих заказов
