@@ -9,6 +9,7 @@ import {
 } from '../services/moysklad'
 import AdminOrders from '../components/AdminOrders.vue'
 import AdminReports from '../components/AdminReports.vue'
+import InstallAppButton from '../components/InstallAppButton.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 
 const POLL_MS = 5000
@@ -227,13 +228,17 @@ onUnmounted(stopPolling)
             <span class="badge" :class="{ 'badge--hot': newCount > 0 }">
               Новых: {{ newCount }}
             </span>
+            <InstallAppButton variant="header" label="Установить админку" />
             <ThemeToggle />
           </div>
           <span class="muted sync">
             {{ lastSyncedAt ? `Обновлено ${formatDate(lastSyncedAt)}` : 'Ожидание…' }}
           </span>
         </template>
-        <ThemeToggle v-else />
+        <div v-else class="admin__meta-row">
+          <InstallAppButton variant="header" label="Установить админку" />
+          <ThemeToggle />
+        </div>
       </div>
     </header>
 

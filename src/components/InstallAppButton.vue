@@ -7,6 +7,10 @@ defineProps({
     default: 'ghost',
     validator: (value) => ['ghost', 'header', 'primary'].includes(value),
   },
+  label: {
+    type: String,
+    default: 'Установить приложение',
+  },
 })
 
 const { visible, isIos, tipOpen, install, closeTip } = usePwaInstall()
@@ -31,7 +35,7 @@ const { visible, isIos, tipOpen, install, closeTip } = usePwaInstall()
           d="M12 3a1 1 0 0 1 1 1v8.59l2.3-2.3a1 1 0 1 1 1.4 1.42l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.42L11 12.59V4a1 1 0 0 1 1-1Zm-7 14a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z"
         />
       </svg>
-      <span>Установить приложение</span>
+      <span>{{ label }}</span>
     </button>
 
     <div

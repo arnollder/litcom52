@@ -20,6 +20,7 @@ npm run dev
 Сборка: `npm run build`. Продакшен на VPS: `npm run build && npm start`.
 
 Прод: [https://litkom-m52.ru/](https://litkom-m52.ru/) (`root@62.113.110.31`, каталог `/opt/litcom52`).
+Админка: [https://admin.litkom-m52.ru/admin](https://admin.litkom-m52.ru/admin) (отдельный поддомен и PWA).
 
 Деплой с локальной машины:
 
@@ -28,6 +29,12 @@ bash deploy/deploy-vps.sh
 ```
 
 Автодеплой: при пуше/мерже в `master` GitHub Actions на self-hosted runner (`litkom-m52`) запускает `deploy/deploy-on-server.sh`.
+
+Один раз на VPS после DNS `admin` A → IP сервера:
+
+```bash
+ssh root@62.113.110.31 'bash /opt/litcom52/deploy/setup-admin-vhost.sh'
+```
 
 Установка runner на VPS (один раз):
 
@@ -129,7 +136,10 @@ journalctl -u litcom52-sync.service -n 50 --no-pager
 
 ## Админка заказов
 
-Страница `/admin` — зеркало раздела «Заказы покупателей» в МойСклад.
+Прод-URL: [https://admin.litkom-m52.ru/admin](https://admin.litkom-m52.ru/admin).
+На основном домене `/admin` редиректит на поддомен. Отдельный PWA-манифест — можно установить админку рядом с магазином.
+
+Страница — зеркало раздела «Заказы покупателей» в МойСклад.
 
 Список загружается напрямую из API МойСклад (опрос каждые 5 секунд). Заказы, оформленные на витрине, помечаются комментарием `Заказ с сервиса Литком-М52` и бейджем «С этого сервиса».
 
@@ -140,7 +150,7 @@ API:
 - `GET /api/admin/orders` — список заказов покупателей из МойСклад
 - `PATCH /api/admin/orders/:id` — `{ "status": "paid" | "shipped" }` (`id` — id документа МойСклад)
 
-Доступ по токену `ADMIN_TOKEN` из `.env` (ввод на странице `/admin`, хранится в `sessionStorage`).
+Доступ по токену `ADMIN_TOKEN` из `.env` (ввод на странице админки, хранится в `sessionStorage`).
 
 Для продакшена на VPS:
 
@@ -154,4 +164,4 @@ npm start
 - `/` — главная
 - `/shop` — каталог и корзина
 - `/checkout` — оформление с выбором контрагента и резервом в МойСклад
-- `/admin` — админка входящих заказов
+- `https://admin.litkom-m52.ru/admin` — админка входящих заказов

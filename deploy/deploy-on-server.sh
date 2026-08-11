@@ -52,5 +52,6 @@ systemctl is-active litcom52 nginx
 curl -sS -o /dev/null -w "home:%{http_code}\n" http://127.0.0.1:4173/
 curl -sS -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:4173/healthz
 curl -sS -o /dev/null -w "https:%{http_code}\n" --connect-timeout 15 https://litkom-m52.ru/ || true
+curl -sS -o /dev/null -w "admin:%{http_code}\n" --connect-timeout 15 https://admin.litkom-m52.ru/admin || true
 
-echo "Deploy OK → https://litkom-m52.ru/"
+echo "Deploy OK → https://litkom-m52.ru/ · https://admin.litkom-m52.ru/admin"

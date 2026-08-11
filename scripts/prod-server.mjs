@@ -30,7 +30,11 @@ const MIME = {
   '.map': 'application/json; charset=utf-8',
 }
 
-const NO_CACHE_FILES = new Set(['/sw.js', '/manifest.webmanifest'])
+const NO_CACHE_FILES = new Set([
+  '/sw.js',
+  '/manifest.webmanifest',
+  '/manifest-admin.webmanifest',
+])
 
 function safeDistPath(pathname) {
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '')
