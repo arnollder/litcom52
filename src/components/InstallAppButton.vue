@@ -116,10 +116,25 @@ const { visible, isIos, tipOpen, install, closeTip } = usePwaInstall()
   animation: rise 0.22s ease both;
 }
 
+/* On the hero CTA the tip opens upward so the next section cannot clip it. */
 .install--ghost .install__tip,
 .install--primary .install__tip {
+  top: auto;
+  bottom: calc(100% + 0.55rem);
   left: 0;
   right: auto;
+  animation-name: tip-drop;
+}
+
+@keyframes tip-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .install__tip p {
