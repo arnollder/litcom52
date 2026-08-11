@@ -27,6 +27,15 @@ npm run dev
 bash deploy/deploy-vps.sh
 ```
 
+Автодеплой: при пуше/мерже в `master` GitHub Actions на self-hosted runner (`litkom-m52`) запускает `deploy/deploy-on-server.sh`.
+
+Установка runner на VPS (один раз):
+
+```bash
+TOKEN=$(gh api -X POST repos/arnollder/litcom52/actions/runners/registration-token --jq .token)
+ssh root@62.113.110.31 "REGISTRATION_TOKEN=$TOKEN bash -s" < deploy/install-github-runner.sh
+```
+
 
 ## Контрагенты в checkout из МойСклад
 
