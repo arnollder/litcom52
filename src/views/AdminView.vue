@@ -13,7 +13,7 @@ import AdminReports from '../components/AdminReports.vue'
 import InstallAppButton from '../components/InstallAppButton.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 
-const POLL_MS = 5000
+const POLL_MS = 15_000
 
 const tokenInput = ref('')
 const isAuthed = ref(Boolean(getAdminToken()))
@@ -31,6 +31,7 @@ const flashIds = ref(new Set())
 
 let pollTimer = null
 let audioCtx = null
+let ordersInFlight = false
 
 const filteredOrders = computed(() => {
   if (filter.value === 'all') return orders.value
@@ -78,6 +79,9 @@ function playChime() {
 
 async function loadOrders({ silent = false } = {}) {
   if (!isAuthed.value) return
+  // Poll ticks must not pile up: MoySklad calls are serialized process-wide.
+  if (ordersInFlight) return
+  ordersInFlight = true
   if (!silent) isLoading.value = true
   error.value = ''
 
@@ -114,6 +118,7 @@ async function loadOrders({ silent = false } = {}) {
     }
   } finally {
     isLoading.value = false
+    ordersInFlight = false
   }
 }
 

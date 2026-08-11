@@ -62,7 +62,12 @@ export async function mapCustomerOrderToAdmin(row, { positions } = {}) {
     items = row.positions.rows.map(mapPosition)
   }
   if (!items) {
-    items = await fetchPositions(row.id)
+    const size = Number(row?.positions?.meta?.size)
+    if (Number.isFinite(size) && size > 0) {
+      items = await fetchPositions(row.id)
+    } else {
+      items = []
+    }
   }
 
   return {
