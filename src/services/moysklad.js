@@ -6,16 +6,55 @@ function getApiBase() {
 
 const TOKEN_KEY = 'litcom52-admin-token'
 
-export function getAdminToken() {
-  return sessionStorage.getItem(TOKEN_KEY) || ''
+function readStorage(storage) {
+  try {
+    return storage.getItem(TOKEN_KEY) || ''
+  } catch {
+    return ''
+  }
 }
 
+function writeStorage(storage, value) {
+  try {
+    storage.setItem(TOKEN_KEY, value)
+  } catch {
+    // Private mode / quota — ignore.
+  }
+}
+
+function removeStorage(storage) {
+  try {
+    storage.removeItem(TOKEN_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+/** Session first (current login), then remembered localStorage (installed admin app). */
+export function getAdminToken() {
+  if (typeof window === 'undefined') return ''
+  return readStorage(sessionStorage) || readStorage(localStorage)
+}
+
+/** Keep the token for this tab until the server confirms it. */
 export function setAdminToken(token) {
-  sessionStorage.setItem(TOKEN_KEY, token)
+  if (typeof window === 'undefined') return
+  writeStorage(sessionStorage, String(token || '').trim())
+}
+
+/** Persist after a successful admin API call so the installed PWA stays signed in. */
+export function persistAdminToken() {
+  if (typeof window === 'undefined') return
+  const token = getAdminToken()
+  if (!token) return
+  writeStorage(sessionStorage, token)
+  writeStorage(localStorage, token)
 }
 
 export function clearAdminToken() {
-  sessionStorage.removeItem(TOKEN_KEY)
+  if (typeof window === 'undefined') return
+  removeStorage(sessionStorage)
+  removeStorage(localStorage)
 }
 
 function adminHeaders() {

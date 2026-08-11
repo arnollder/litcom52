@@ -4,6 +4,7 @@ import {
   clearAdminToken,
   fetchAdminOrders,
   getAdminToken,
+  persistAdminToken,
   setAdminToken,
   updateAdminOrderStatus,
 } from '../services/moysklad'
@@ -104,6 +105,8 @@ async function loadOrders({ silent = false } = {}) {
     newCount.value = result.newCount
     knownIds.value = nextIds
     lastSyncedAt.value = new Date().toISOString()
+    // Remember only after the server accepted the token (installed PWA reuses it).
+    persistAdminToken()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Не удалось загрузить заказы'
     if (err?.status === 401 || err?.status === 503) {
