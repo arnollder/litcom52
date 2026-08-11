@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useThemeStore } from './stores/theme'
+import { registerServiceWorker } from './composables/usePwaInstall'
 import './styles/main.css'
 
 const app = createApp(App)
@@ -10,3 +11,4 @@ const pinia = createPinia()
 app.use(pinia)
 useThemeStore(pinia)
 app.use(router).mount('#app')
+registerServiceWorker()

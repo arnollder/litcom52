@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from 'vue-router'
 import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
+import InstallAppButton from '../components/InstallAppButton.vue'
 </script>
 
 <template>
@@ -28,6 +29,7 @@ import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
       </p>
       <div class="hero__cta reveal reveal-delay-3">
         <RouterLink class="btn btn-primary" to="/shop">Перейти в каталог</RouterLink>
+        <InstallAppButton variant="ghost" />
       </div>
     </div>
   </section>

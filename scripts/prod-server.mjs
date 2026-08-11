@@ -17,6 +17,7 @@ const MIME = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -29,6 +30,8 @@ const MIME = {
   '.map': 'application/json; charset=utf-8',
 }
 
+const NO_CACHE_FILES = new Set(['/sw.js', '/manifest.webmanifest'])
+
 function safeDistPath(pathname) {
   const relative = pathname === '/' ? 'index.html' : pathname.replace(/^\//, '')
   const full = normalize(join(DIST_DIR, relative))
@@ -36,11 +39,11 @@ function safeDistPath(pathname) {
   return full
 }
 
-async function sendFile(res, filePath) {
+async function sendFile(res, filePath, pathname = '') {
   const type = MIME[extname(filePath).toLowerCase()] || 'application/octet-stream'
   res.statusCode = 200
   res.setHeader('Content-Type', type)
-  if (extname(filePath) === '.html') {
+  if (extname(filePath) === '.html' || NO_CACHE_FILES.has(pathname)) {
     res.setHeader('Cache-Control', 'no-cache')
   } else {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
@@ -54,7 +57,7 @@ async function handleStatic(req, res, pathname) {
     try {
       const info = await stat(candidate)
       if (info.isFile()) {
-        await sendFile(res, candidate)
+        await sendFile(res, candidate, pathname)
         return
       }
     } catch {
