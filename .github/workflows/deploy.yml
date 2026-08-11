@@ -19,4 +19,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy on server
-        run: sudo -n bash deploy/deploy-on-server.sh
+        run: sudo -n /bin/bash "${GITHUB_WORKSPACE}/deploy/deploy-on-server.sh"
