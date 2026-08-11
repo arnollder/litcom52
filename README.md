@@ -19,6 +19,15 @@ npm run dev
 
 Сборка: `npm run build`. Продакшен на VPS: `npm run build && npm start`.
 
+Прод: [https://litkom-m52.ru/](https://litkom-m52.ru/) (`root@62.113.110.31`, каталог `/opt/litcom52`).
+
+Деплой с локальной машины:
+
+```bash
+bash deploy/deploy-vps.sh
+```
+
+
 ## Контрагенты в checkout из МойСклад
 
 В форме `/checkout` выбирается контрагент МойСклад (radio + выпадающий список).
