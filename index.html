@@ -42,7 +42,7 @@
         if (!isAdmin) return
 
         const manifest = document.querySelector('link[rel="manifest"]')
-        if (manifest) manifest.setAttribute('href', '/manifest-admin.webmanifest?v=1')
+        if (manifest) manifest.setAttribute('href', '/manifest-admin.webmanifest?v=2')
 
         const themeColor = document.querySelector('meta[name="theme-color"]')
         if (themeColor) themeColor.setAttribute('content', '#14532d')
@@ -52,10 +52,10 @@
 
         const description = document.querySelector('meta[name="description"]')
         if (description) {
-          description.setAttribute('content', 'Админка заказов Литком М52.')
+          description.setAttribute('content', 'Админка М52 — заказы покупателей МойСклад.')
         }
 
-        document.title = 'Админка — Литком-М52'
+        document.title = 'Админка М52'
       })()
     </script>
   </head>

@@ -25,7 +25,7 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: AdminView,
-      meta: { title: 'Админка — Литком-М52', hideChrome: true },
+      meta: { title: 'Админка М52', hideChrome: true },
     },
   ],
   scrollBehavior() {
