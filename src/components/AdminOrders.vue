@@ -16,9 +16,16 @@ const emit = defineEmits(['set-filter', 'toggle-sound', 'refresh', 'logout', 'se
 
 const pending = ref(null)
 
+const isRevertPending = computed(() => {
+  if (!pending.value) return false
+  return previousStatus(pending.value.order) === pending.value.status
+})
+
 const pendingTitle = computed(() => {
   if (!pending.value) return ''
-  return pending.value.status === 'shipped' ? 'Отгрузить заказ?' : 'Отметить оплату?'
+  if (isRevertPending.value) return 'Откатить статус?'
+  if (pending.value.status === 'shipped') return 'Отгрузить заказ?'
+  return 'Отметить оплату?'
 })
 
 const pendingText = computed(() => {
@@ -26,6 +33,10 @@ const pendingText = computed(() => {
   const order = pending.value.order
   const name = order.moySklad?.name || '—'
   const party = order.customer?.counterparty?.name || 'контрагент не указан'
+  const nextLabel = props.statusLabel[pending.value.status] || pending.value.status
+  if (isRevertPending.value) {
+    return `Заказ №${name} (${party}) вернётся к статусу «${nextLabel}» в МойСклад.`
+  }
   if (pending.value.status === 'shipped') {
     return `Заказ №${name} (${party}) будет отмечен как «Отгружен» в МойСклад.`
   }
@@ -34,7 +45,9 @@ const pendingText = computed(() => {
 
 const pendingConfirmLabel = computed(() => {
   if (!pending.value) return 'Подтвердить'
-  return pending.value.status === 'shipped' ? 'Отгрузить' : 'Оплачен'
+  if (isRevertPending.value) return 'Откатить'
+  if (pending.value.status === 'shipped') return 'Отгрузить'
+  return 'Оплачен'
 })
 
 function askStatus(order, status) {
@@ -72,6 +85,17 @@ function canMarkPaid(order) {
 
 function canMarkShipped(order) {
   return Boolean(order.canShip) || order.status === 'paid'
+}
+
+function previousStatus(order) {
+  if (order.status === 'shipped') return 'paid'
+  if (order.status === 'paid') return 'new'
+  return null
+}
+
+function previousStatusLabel(order) {
+  const status = previousStatus(order)
+  return status ? props.statusLabel[status] || status : ''
 }
 
 function shipDisabled(order) {
@@ -212,6 +236,16 @@ function formatDate(value) {
           </div>
           <div class="order__actions">
             <button
+              v-if="previousStatus(order)"
+              class="btn btn-ghost"
+              type="button"
+              :disabled="isUpdating === order.id"
+              :title="`Вернуть статус «${previousStatusLabel(order)}»`"
+              @click="askStatus(order, previousStatus(order))"
+            >
+              Откатить
+            </button>
+            <button
               v-if="canMarkPaid(order)"
               class="btn btn-primary"
               type="button"
@@ -234,7 +268,6 @@ function formatDate(value) {
             >
               Отгружен
             </button>
-            <span v-else class="muted shipped-label">Отгружен</span>
           </div>
         </div>
       </li>
