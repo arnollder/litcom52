@@ -6,20 +6,13 @@ import {
   mapMoySkladStateToStatus,
 } from './customer-order-state.mjs'
 import { isStorefrontOrderComment } from './storefront-order-comment.mjs'
+import { moySkladMomentToIso } from './moysklad-time.mjs'
 
 const PAGE_SIZE = 100
 const DEFAULT_LIMIT = 100
 
 function uiHref(orderId) {
   return `https://online.moysklad.ru/app/#customerorder/edit?id=${orderId}`
-}
-
-function momentToIso(moment) {
-  if (!moment) return null
-  // MoySklad: "2026-07-29 20:07:00.000"
-  const normalized = String(moment).replace(' ', 'T')
-  const date = new Date(normalized)
-  return Number.isNaN(date.getTime()) ? String(moment) : date.toISOString()
 }
 
 function mapPosition(row) {
@@ -72,7 +65,7 @@ export async function mapCustomerOrderToAdmin(row, { positions } = {}) {
 
   return {
     id: row.id,
-    createdAt: momentToIso(row.moment) || new Date().toISOString(),
+    createdAt: moySkladMomentToIso(row.moment) || new Date().toISOString(),
     status,
     customer: {
       counterparty: {

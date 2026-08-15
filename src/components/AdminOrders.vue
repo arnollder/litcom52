@@ -109,6 +109,7 @@ function formatMoney(value) {
   return `${Number(value).toLocaleString('ru-RU')} ₽`
 }
 
+/** Match MoySklad document time (Europe/Moscow wall clock). */
 function formatDate(value) {
   if (!value) return '—'
   try {
@@ -118,6 +119,7 @@ function formatDate(value) {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      timeZone: 'Europe/Moscow',
     }).format(new Date(value))
   } catch {
     return value
