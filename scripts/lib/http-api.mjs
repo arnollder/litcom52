@@ -12,6 +12,7 @@ import {
   setCustomerOrderState,
 } from './customer-order-state.mjs'
 import { createDemandFromCustomerOrder } from './create-demand-from-customer-order.mjs'
+import { createPaymentInFromCustomerOrder } from './create-paymentin-from-customer-order.mjs'
 import {
   getCustomerOrderForAdmin,
   listCustomerOrdersForAdmin,
@@ -161,6 +162,15 @@ async function applyAdminStatus(orderId, requestedStatus) {
   }
 
   if (status === 'paid') {
+    // Create Входящий платёж (paymentin) before flipping the workflow state.
+    let payment = null
+    try {
+      payment = await createPaymentInFromCustomerOrder(resolvedMoySkladId)
+    } catch (error) {
+      console.error('[paymentin] failed to create payment for', resolvedMoySkladId, error)
+      throw error
+    }
+
     const ms = await setCustomerOrderState(resolvedMoySkladId, 'Оплачен')
     if (local) {
       await updateOrderStatus(local.id, 'paid', {
@@ -169,6 +179,9 @@ async function applyAdminStatus(orderId, requestedStatus) {
           name: ms.name,
           href: ms.href,
           stateName: ms.stateName,
+          paymentId: payment?.id || null,
+          paymentName: payment?.name || null,
+          paymentHref: payment?.href || null,
         },
       })
     }
