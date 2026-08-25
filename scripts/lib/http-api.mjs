@@ -11,6 +11,7 @@ import {
   isPaidLikeStatus,
   setCustomerOrderState,
 } from './customer-order-state.mjs'
+import { createDemandFromCustomerOrder } from './create-demand-from-customer-order.mjs'
 import {
   getCustomerOrderForAdmin,
   listCustomerOrdersForAdmin,
@@ -184,6 +185,15 @@ async function applyAdminStatus(orderId, requestedStatus) {
       throw error
     }
 
+    // Create Отгрузка (demand) before flipping the workflow state.
+    let demand = null
+    try {
+      demand = await createDemandFromCustomerOrder(resolvedMoySkladId)
+    } catch (error) {
+      console.error('[demand] failed to create shipment for', resolvedMoySkladId, error)
+      throw error
+    }
+
     const ms = await setCustomerOrderState(resolvedMoySkladId, 'Отгружен')
     if (local) {
       await updateOrderStatus(local.id, 'shipped', {
@@ -192,6 +202,9 @@ async function applyAdminStatus(orderId, requestedStatus) {
           name: ms.name,
           href: ms.href,
           stateName: ms.stateName,
+          demandId: demand?.id || null,
+          demandName: demand?.name || null,
+          demandHref: demand?.href || null,
         },
       })
     }
