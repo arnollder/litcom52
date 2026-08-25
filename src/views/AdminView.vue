@@ -4,14 +4,16 @@ import {
   clearAdminToken,
   fetchAdminOrders,
   getAdminToken,
+  persistAdminToken,
   setAdminToken,
   updateAdminOrderStatus,
 } from '../services/moysklad'
 import AdminOrders from '../components/AdminOrders.vue'
 import AdminReports from '../components/AdminReports.vue'
+import InstallAppButton from '../components/InstallAppButton.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 
-const POLL_MS = 5000
+const POLL_MS = 15_000
 
 const tokenInput = ref('')
 const isAuthed = ref(Boolean(getAdminToken()))
@@ -29,6 +31,7 @@ const flashIds = ref(new Set())
 
 let pollTimer = null
 let audioCtx = null
+let ordersInFlight = false
 
 const filteredOrders = computed(() => {
   if (filter.value === 'all') return orders.value
@@ -76,6 +79,9 @@ function playChime() {
 
 async function loadOrders({ silent = false } = {}) {
   if (!isAuthed.value) return
+  // Poll ticks must not pile up: MoySklad calls are serialized process-wide.
+  if (ordersInFlight) return
+  ordersInFlight = true
   if (!silent) isLoading.value = true
   error.value = ''
 
@@ -103,6 +109,8 @@ async function loadOrders({ silent = false } = {}) {
     newCount.value = result.newCount
     knownIds.value = nextIds
     lastSyncedAt.value = new Date().toISOString()
+    // Remember only after the server accepted the token (installed PWA reuses it).
+    persistAdminToken()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Не удалось загрузить заказы'
     if (err?.status === 401 || err?.status === 503) {
@@ -110,6 +118,7 @@ async function loadOrders({ silent = false } = {}) {
     }
   } finally {
     isLoading.value = false
+    ordersInFlight = false
   }
 }
 
@@ -200,7 +209,7 @@ onUnmounted(stopPolling)
     <header class="admin__head">
       <div>
         <p class="eyebrow">Литком-М52</p>
-        <h1 class="display">Админка заказов</h1>
+        <h1 class="display">Админка М52</h1>
         <p class="muted">Список соответствует разделу «Заказы покупателей» в МойСклад.</p>
         <div v-if="isAuthed" class="head-tabs">
           <button
@@ -227,13 +236,17 @@ onUnmounted(stopPolling)
             <span class="badge" :class="{ 'badge--hot': newCount > 0 }">
               Новых: {{ newCount }}
             </span>
+            <InstallAppButton variant="header" label="Установить админку" />
             <ThemeToggle />
           </div>
           <span class="muted sync">
             {{ lastSyncedAt ? `Обновлено ${formatDate(lastSyncedAt)}` : 'Ожидание…' }}
           </span>
         </template>
-        <ThemeToggle v-else />
+        <div v-else class="admin__meta-row">
+          <InstallAppButton variant="header" label="Установить админку" />
+          <ThemeToggle />
+        </div>
       </div>
     </header>
 

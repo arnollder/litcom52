@@ -1,4 +1,6 @@
 <script setup>
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+
 const props = defineProps({
   filteredOrders: { type: Array, required: true },
   filter: { type: String, required: true },
@@ -12,12 +14,88 @@ const props = defineProps({
 
 const emit = defineEmits(['set-filter', 'toggle-sound', 'refresh', 'logout', 'set-status'])
 
+const pending = ref(null)
+
+const isRevertPending = computed(() => {
+  if (!pending.value) return false
+  return previousStatus(pending.value.order) === pending.value.status
+})
+
+const pendingTitle = computed(() => {
+  if (!pending.value) return ''
+  if (isRevertPending.value) return 'Откатить статус?'
+  if (pending.value.status === 'shipped') return 'Отгрузить заказ?'
+  return 'Отметить оплату?'
+})
+
+const pendingText = computed(() => {
+  if (!pending.value) return ''
+  const order = pending.value.order
+  const name = order.moySklad?.name || '—'
+  const party = order.customer?.counterparty?.name || 'контрагент не указан'
+  const nextLabel = props.statusLabel[pending.value.status] || pending.value.status
+  if (isRevertPending.value) {
+    return `Заказ №${name} (${party}) вернётся к статусу «${nextLabel}» в МойСклад.`
+  }
+  if (pending.value.status === 'shipped') {
+    return `Заказ №${name} (${party}) будет отмечен как «Отгружен» в МойСклад.`
+  }
+  return `Заказ №${name} (${party}) будет отмечен как «Оплачен» в МойСклад.`
+})
+
+const pendingConfirmLabel = computed(() => {
+  if (!pending.value) return 'Подтвердить'
+  if (isRevertPending.value) return 'Откатить'
+  if (pending.value.status === 'shipped') return 'Отгрузить'
+  return 'Оплачен'
+})
+
+function askStatus(order, status) {
+  pending.value = { order, status }
+}
+
+function closeConfirm() {
+  pending.value = null
+}
+
+function confirmStatus() {
+  if (!pending.value) return
+  const { order, status } = pending.value
+  pending.value = null
+  emit('set-status', order, status)
+}
+
+function onKeydown(event) {
+  if (event.key === 'Escape') closeConfirm()
+}
+
+watch(pending, (value) => {
+  if (typeof window === 'undefined') return
+  if (value) window.addEventListener('keydown', onKeydown)
+  else window.removeEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') window.removeEventListener('keydown', onKeydown)
+})
+
 function canMarkPaid(order) {
   return order.status === 'new'
 }
 
 function canMarkShipped(order) {
   return Boolean(order.canShip) || order.status === 'paid'
+}
+
+function previousStatus(order) {
+  if (order.status === 'shipped') return 'paid'
+  if (order.status === 'paid') return 'new'
+  return null
+}
+
+function previousStatusLabel(order) {
+  const status = previousStatus(order)
+  return status ? props.statusLabel[status] || status : ''
 }
 
 function shipDisabled(order) {
@@ -31,6 +109,7 @@ function formatMoney(value) {
   return `${Number(value).toLocaleString('ru-RU')} ₽`
 }
 
+/** Match MoySklad document time (Europe/Moscow wall clock). */
 function formatDate(value) {
   if (!value) return '—'
   try {
@@ -40,6 +119,7 @@ function formatDate(value) {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      timeZone: 'Europe/Moscow',
     }).format(new Date(value))
   } catch {
     return value
@@ -158,11 +238,21 @@ function formatDate(value) {
           </div>
           <div class="order__actions">
             <button
+              v-if="previousStatus(order)"
+              class="btn btn-ghost"
+              type="button"
+              :disabled="isUpdating === order.id"
+              :title="`Вернуть статус «${previousStatusLabel(order)}»`"
+              @click="askStatus(order, previousStatus(order))"
+            >
+              Откатить
+            </button>
+            <button
               v-if="canMarkPaid(order)"
               class="btn btn-primary"
               type="button"
               :disabled="isUpdating === order.id"
-              @click="emit('set-status', order, 'paid')"
+              @click="askStatus(order, 'paid')"
             >
               Оплачен
             </button>
@@ -176,15 +266,40 @@ function formatDate(value) {
                   ? 'Сначала отметьте оплату в МойСклад'
                   : ''
               "
-              @click="emit('set-status', order, 'shipped')"
+              @click="askStatus(order, 'shipped')"
             >
               Отгружен
             </button>
-            <span v-else class="muted shipped-label">Отгружен</span>
           </div>
         </div>
       </li>
     </ul>
+
+    <Teleport to="body">
+      <div
+        v-if="pending"
+        class="confirm"
+        role="presentation"
+        @click.self="closeConfirm"
+      >
+        <div
+          class="confirm__card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="status-confirm-title"
+          aria-describedby="status-confirm-text"
+        >
+          <h2 id="status-confirm-title" class="confirm__title">{{ pendingTitle }}</h2>
+          <p id="status-confirm-text" class="muted">{{ pendingText }}</p>
+          <div class="confirm__actions">
+            <button class="btn btn-ghost" type="button" @click="closeConfirm">Отмена</button>
+            <button class="btn btn-primary" type="button" @click="confirmStatus">
+              {{ pendingConfirmLabel }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -403,5 +518,44 @@ function formatDate(value) {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+.confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: rgba(4, 18, 11, 0.62);
+  backdrop-filter: blur(8px);
+}
+
+.confirm__card {
+  width: min(26rem, 100%);
+  padding: 1.25rem 1.3rem 1.15rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow);
+}
+
+.confirm__title {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+}
+
+.confirm__card .muted {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.15rem;
 }
 </style>

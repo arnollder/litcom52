@@ -1,0 +1,22 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to litkom-m52.ru
+    runs-on: [self-hosted, linux, litcom52]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy on server
+        run: sudo -n /bin/bash "${GITHUB_WORKSPACE}/deploy/deploy-on-server.sh"

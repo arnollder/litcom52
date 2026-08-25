@@ -1,6 +1,7 @@
 <script setup>
 import { RouterLink } from 'vue-router'
 import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
+import InstallAppButton from '../components/InstallAppButton.vue'
 </script>
 
 <template>
@@ -28,6 +29,7 @@ import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
       </p>
       <div class="hero__cta reveal reveal-delay-3">
         <RouterLink class="btn btn-primary" to="/shop">Перейти в каталог</RouterLink>
+        <InstallAppButton variant="ghost" />
       </div>
     </div>
   </section>
@@ -84,10 +86,10 @@ import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
 <style scoped>
 .hero {
   position: relative;
+  z-index: 1;
   min-height: calc(100svh - var(--header-h));
   display: grid;
   align-items: end;
-  overflow: hidden;
   isolation: isolate;
 }
 
@@ -95,6 +97,7 @@ import NextCommitteeMeeting from '../components/NextCommitteeMeeting.vue'
   position: absolute;
   inset: 0;
   z-index: -1;
+  overflow: hidden;
   background:
     var(--hero-scrim),
     radial-gradient(ellipse 80% 60% at 70% 40%, var(--hero-glow), transparent 60%);

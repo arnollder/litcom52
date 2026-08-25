@@ -3,6 +3,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { computed, ref } from 'vue'
 import { useCartStore } from '../stores/cart'
 import ThemeToggle from './ThemeToggle.vue'
+import InstallAppButton from './InstallAppButton.vue'
 
 const route = useRoute()
 const cart = useCartStore()
@@ -50,6 +51,7 @@ function close() {
       </nav>
 
       <div class="header__actions">
+        <InstallAppButton variant="header" />
         <ThemeToggle />
 
         <button

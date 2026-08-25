@@ -211,7 +211,22 @@ async function applyAdminStatus(orderId, requestedStatus) {
     return getCustomerOrderForAdmin(resolvedMoySkladId)
   }
 
-  const error = new Error('Некорректный статус. Допустимо: paid, shipped')
+  if (status === 'new') {
+    const ms = await setCustomerOrderState(resolvedMoySkladId, 'Новый')
+    if (local) {
+      await updateOrderStatus(local.id, 'new', {
+        moySklad: {
+          id: ms.id,
+          name: ms.name,
+          href: ms.href,
+          stateName: ms.stateName,
+        },
+      })
+    }
+    return getCustomerOrderForAdmin(resolvedMoySkladId)
+  }
+
+  const error = new Error('Некорректный статус. Допустимо: new, paid, shipped')
   error.status = 400
   throw error
 }
