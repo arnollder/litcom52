@@ -20,6 +20,12 @@ import {
 import { fetchLiveStockMap } from './fetch-stock.mjs'
 import { getAdminReportMetrics } from './admin-reports.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
+import {
+  removePushSubscription,
+  upsertPushSubscription,
+} from './push-subscriptions-store.mjs'
+import { getVapidPublicKey, isWebPushConfigured } from './web-push.mjs'
+import { notifyPushForNewOrder } from './admin-push-poller.mjs'
 
 export function sendJson(res, status, payload) {
   res.statusCode = status
@@ -117,6 +123,14 @@ export async function handleReserveOrder(req, res) {
     }
 
     sendJson(res, 200, { ok: true, order: result, inbox: inboxOrder })
+
+    notifyPushForNewOrder({
+      id: result?.id,
+      name: result?.name,
+      moySklad: result,
+    }).catch((pushError) => {
+      console.error('[web-push] reserve notify failed', pushError)
+    })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Reserve failed'
     sendJson(res, mapErrorStatus(error), { ok: false, error: message })
@@ -281,6 +295,51 @@ export async function handleAdminOrders(req, res, pathname) {
   }
 }
 
+export async function handleAdminPush(req, res, pathname) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'GET, POST, DELETE, OPTIONS')
+    return
+  }
+
+  try {
+    await loadEnvFromFile()
+
+    if (pathname === '/api/admin/push/vapid-public-key' && req.method === 'GET') {
+      if (!isWebPushConfigured()) {
+        sendJson(res, 503, { ok: false, error: 'Web Push не настроен на сервере' })
+        return
+      }
+      sendJson(res, 200, { ok: true, publicKey: getVapidPublicKey() })
+      return
+    }
+
+    assertAdmin(req)
+
+    if (pathname === '/api/admin/push/subscribe' && req.method === 'POST') {
+      if (!isWebPushConfigured()) {
+        sendJson(res, 503, { ok: false, error: 'Web Push не настроен на сервере' })
+        return
+      }
+      const body = await readJsonBody(req)
+      const row = await upsertPushSubscription(body.subscription || body)
+      sendJson(res, 200, { ok: true, id: row.id })
+      return
+    }
+
+    if (pathname === '/api/admin/push/subscribe' && req.method === 'DELETE') {
+      const body = await readJsonBody(req)
+      await removePushSubscription(body.subscription || body)
+      sendJson(res, 200, { ok: true, removed: true })
+      return
+    }
+
+    sendJson(res, 405, { error: 'Method not allowed' })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Admin push failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
 export async function handleAdminReports(req, res) {
   if (req.method === 'OPTIONS') {
     corsPreflight(res, 'GET, OPTIONS')
@@ -333,6 +392,10 @@ export async function handleApiRequest(req, res) {
   }
   if (pathname === '/api/admin/reports') {
     await handleAdminReports(req, res)
+    return true
+  }
+  if (pathname === '/api/admin/push/vapid-public-key' || pathname === '/api/admin/push/subscribe') {
+    await handleAdminPush(req, res, pathname)
     return true
   }
   return false

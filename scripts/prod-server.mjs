@@ -6,6 +6,7 @@ import { stat } from 'node:fs/promises'
 import { extname, join, normalize, resolve, sep } from 'node:path'
 import { handleApiRequest, pathOnly, sendJson } from './lib/http-api.mjs'
 import { loadEnvFromFile } from './lib/moysklad-env.mjs'
+import { startAdminPushPoller } from './lib/admin-push-poller.mjs'
 
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '..')
 const DIST_DIR = resolve(ROOT_DIR, 'dist')
@@ -95,6 +96,7 @@ const server = createServer(async (req, res) => {
 })
 
 await loadEnvFromFile()
+startAdminPushPoller()
 server.listen(PORT, HOST, () => {
   console.log(`litcom52 listening on http://${HOST}:${PORT}`)
 })
