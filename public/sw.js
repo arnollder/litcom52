@@ -28,6 +28,7 @@ function parsePushPayload(event) {
 }
 
 async function setBadgeCount(count) {
+  if (count == null) return
   const value = Number(count) || 0
   if (value > 0 && 'setAppBadge' in self.navigator) {
     await self.navigator.setAppBadge(value)

@@ -25,7 +25,7 @@ import {
   upsertPushSubscription,
 } from './push-subscriptions-store.mjs'
 import { getVapidPublicKey, isWebPushConfigured } from './web-push.mjs'
-import { notifyPushForNewOrder } from './admin-push-poller.mjs'
+import { notifyPushForNewOrder, notifyPushForPaidOrder } from './admin-push-poller.mjs'
 
 export function sendJson(res, status, payload) {
   res.statusCode = status
@@ -199,7 +199,14 @@ async function applyAdminStatus(orderId, requestedStatus) {
         },
       })
     }
-    return getCustomerOrderForAdmin(resolvedMoySkladId)
+    const order = await getCustomerOrderForAdmin(resolvedMoySkladId)
+    notifyPushForPaidOrder({
+      ...order,
+      paymentName: payment?.name || '',
+    }).catch((pushError) => {
+      console.error('[web-push] paid notify failed', pushError)
+    })
+    return order
   }
 
   if (status === 'shipped') {

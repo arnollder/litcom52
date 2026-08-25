@@ -90,3 +90,20 @@ export async function notifyNewOrders({ newCount, orderName = '', orderId = '' }
     tag: orderId ? `order-${orderId}` : 'new-orders',
   })
 }
+
+export async function notifyOrderPaid({ orderName = '', orderId = '', paymentName = '' } = {}) {
+  const title = 'Заказ оплачен'
+  const body =
+    orderName && paymentName
+      ? `Заказ №${orderName} — платёж ${paymentName}`
+      : orderName
+        ? `Заказ №${orderName} отмечен как «Оплачен»`
+        : 'Заказ переведён в статус «Оплачен»'
+
+  return sendPushToAll({
+    title,
+    body,
+    url: '/',
+    tag: orderId ? `order-paid-${orderId}` : 'order-paid',
+  })
+}
