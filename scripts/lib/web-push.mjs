@@ -42,7 +42,10 @@ export async function sendPushToAll(payload) {
 
   ensureWebPush()
   const subscriptions = await listPushSubscriptions()
-  if (!subscriptions.length) return { sent: 0, failed: 0, skipped: false }
+  if (!subscriptions.length) {
+    console.warn('[web-push] no subscriptions, skip', payload?.title || '')
+    return { sent: 0, failed: 0, skipped: false }
+  }
 
   const body = JSON.stringify(payload)
   let sent = 0

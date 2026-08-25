@@ -121,8 +121,13 @@ export function useAdminPush() {
   }
 
   async function syncSubscription() {
-    if (!supported.value || !readEnabledFlag()) return
+    if (!supported.value) return
     if (Notification.permission !== 'granted') return
+    if (!readEnabledFlag()) {
+      const registration = await getRegistration()
+      const existing = await registration?.pushManager?.getSubscription()
+      if (!existing) return
+    }
     await enable()
   }
 

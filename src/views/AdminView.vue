@@ -158,7 +158,6 @@ function logout() {
   orders.value = []
   newCount.value = 0
   syncAppBadge(0)
-  disablePush()
   stopPolling()
 }
 
@@ -217,6 +216,7 @@ onMounted(() => {
   if (isAuthed.value) {
     loadOrders()
     if (activeSection.value === 'orders') startPolling()
+    syncPushSubscription()
   }
 })
 
