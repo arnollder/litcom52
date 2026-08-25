@@ -42,6 +42,7 @@ const {
   error: pushError,
   canEnable: canEnablePush,
   canDisable: canDisablePush,
+  canRetryDenied: canRetryDeniedPush,
   enable: enablePush,
   disable: disablePush,
   syncSubscription: syncPushSubscription,
@@ -260,7 +261,7 @@ onUnmounted(stopPolling)
               v-if="pushSupported"
               type="button"
               class="btn btn-ghost push-btn"
-              :disabled="pushBusy || (!canEnablePush && !canDisablePush)"
+              :disabled="pushBusy || (!canEnablePush && !canDisablePush && !canRetryDeniedPush)"
               @click="pushEnabled ? disablePush() : enablePush()"
             >
               {{ pushEnabled ? 'Push: вкл' : pushPermission === 'denied' ? 'Push: запрещён' : 'Push: выкл' }}

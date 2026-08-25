@@ -57,23 +57,43 @@ export function useAdminPush() {
     () => supported.value && permission.value !== 'denied' && !enabled.value && !busy.value,
   )
   const canDisable = computed(() => supported.value && enabled.value && !busy.value)
+  const canRetryDenied = computed(
+    () => supported.value && permission.value === 'denied' && !busy.value,
+  )
 
   async function enable() {
     if (!supported.value || busy.value) return false
-    busy.value = true
     error.value = ''
 
+    // Chrome requires requestPermission in the same user-gesture turn.
+    // Any prior await (fetch / SW ready) turns this into a "quiet" prompt
+    // that often lands the site in the blocked-notifications list.
+    if (Notification.permission === 'denied') {
+      permission.value = 'denied'
+      error.value =
+        'Уведомления запрещены в настройках сайта. Разрешите их для этого адреса и обновите страницу.'
+      return false
+    }
+
+    const nextPermission =
+      Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission()
+    permission.value = nextPermission
+    if (nextPermission !== 'granted') {
+      error.value =
+        nextPermission === 'denied'
+          ? 'Браузер запретил уведомления. Разрешите их в настройках сайта и обновите страницу.'
+          : 'Разрешение на уведомления не выдано'
+      return false
+    }
+
+    busy.value = true
     try {
       const { publicKey } = await fetchPushVapidPublicKey()
       const registration = await getRegistration()
       if (!registration?.pushManager) {
         throw new Error('Service Worker не готов')
-      }
-
-      const nextPermission = await Notification.requestPermission()
-      permission.value = nextPermission
-      if (nextPermission !== 'granted') {
-        throw new Error('Разрешение на уведомления не выдано')
       }
 
       let subscription = await registration.pushManager.getSubscription()
@@ -139,6 +159,7 @@ export function useAdminPush() {
     error,
     canEnable,
     canDisable,
+    canRetryDenied,
     enable,
     disable,
     syncSubscription,
