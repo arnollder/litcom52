@@ -415,7 +415,7 @@ onMounted(loadCounterparties)
               <input
                 v-model="counterpartyQuery"
                 type="text"
-                placeholder="Начните вводить название, телефон или email"
+                placeholder="(начните вводить название группы)"
                 autocomplete="off"
                 @input="onCounterpartyQueryInput"
               />
