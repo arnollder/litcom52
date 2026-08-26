@@ -59,10 +59,54 @@ function makeLayoutMap(from, to) {
 const EN_TO_RU = makeLayoutMap(EN_LAYOUT, RU_LAYOUT)
 const RU_TO_EN = makeLayoutMap(RU_LAYOUT, EN_LAYOUT)
 
+const CYR_TO_LAT = {
+  а: 'a',
+  б: 'b',
+  в: 'v',
+  г: 'g',
+  д: 'd',
+  е: 'e',
+  ё: 'e',
+  ж: 'zh',
+  з: 'z',
+  и: 'i',
+  й: 'y',
+  к: 'k',
+  л: 'l',
+  м: 'm',
+  н: 'n',
+  о: 'o',
+  п: 'p',
+  р: 'r',
+  с: 's',
+  т: 't',
+  у: 'u',
+  ф: 'f',
+  х: 'h',
+  ц: 'ts',
+  ч: 'ch',
+  ш: 'sh',
+  щ: 'sch',
+  ъ: '',
+  ы: 'y',
+  ь: '',
+  э: 'e',
+  ю: 'yu',
+  я: 'ya',
+}
+
 function swapLayout(value, map) {
   return String(value || '')
     .split('')
     .map((char) => map[char] || char)
+    .join('')
+}
+
+function toLatinPhonetic(value) {
+  return String(value || '')
+    .toLowerCase()
+    .split('')
+    .map((char) => CYR_TO_LAT[char] ?? char)
     .join('')
 }
 
@@ -77,12 +121,15 @@ function normalizeText(value) {
 function makeSearchForms(value) {
   const raw = String(value || '').toLowerCase().trim()
   if (!raw) return []
-  const forms = new Set([
-    normalizeText(raw),
-    normalizeText(swapLayout(raw, EN_TO_RU)),
-    normalizeText(swapLayout(raw, RU_TO_EN)),
-  ])
-  return [...forms].filter(Boolean)
+  const variants = [
+    raw,
+    swapLayout(raw, EN_TO_RU),
+    swapLayout(raw, RU_TO_EN),
+    toLatinPhonetic(raw),
+    toLatinPhonetic(swapLayout(raw, EN_TO_RU)),
+    toLatinPhonetic(swapLayout(raw, RU_TO_EN)),
+  ]
+  return [...new Set(variants.map((item) => normalizeText(item)).filter(Boolean))]
 }
 
 const selectedCounterparty = computed(
@@ -92,12 +139,15 @@ const selectedCounterparty = computed(
 const indexedCounterparties = computed(() =>
   counterparties.value.map((item) => {
     const base = `${item.name || ''} ${item.description || ''} ${item.contact || ''}`
+    const lower = base.toLowerCase()
     return {
       item,
       searchBlob: normalizeText(base),
-      searchBlobRu: normalizeText(swapLayout(base.toLowerCase(), EN_TO_RU)),
-      searchBlobEn: normalizeText(swapLayout(base.toLowerCase(), RU_TO_EN)),
+      searchBlobRu: normalizeText(swapLayout(lower, EN_TO_RU)),
+      searchBlobEn: normalizeText(swapLayout(lower, RU_TO_EN)),
+      searchBlobLatin: normalizeText(toLatinPhonetic(base)),
       nameNorm: normalizeText(item.name || ''),
+      nameLatin: normalizeText(toLatinPhonetic(item.name || '')),
     }
   }),
 )
@@ -116,13 +166,14 @@ const matchedCounterparties = computed(() => {
         (token) =>
           entry.searchBlob.includes(token) ||
           entry.searchBlobRu.includes(token) ||
-          entry.searchBlobEn.includes(token),
+          entry.searchBlobEn.includes(token) ||
+          entry.searchBlobLatin.includes(token),
       )
       if (!fits) continue
       matched = true
       score += 1
-      if (entry.nameNorm.startsWith(form)) score += 6
-      else if (entry.nameNorm.includes(form)) score += 3
+      if (entry.nameNorm.startsWith(form) || entry.nameLatin.startsWith(form)) score += 6
+      else if (entry.nameNorm.includes(form) || entry.nameLatin.includes(form)) score += 3
     }
     if (matched) ranked.push({ score, name: entry.item.name || '', item: entry.item })
   }
