@@ -40,10 +40,103 @@ const isCounterpartiesLoading = ref(false)
 const counterpartiesError = ref('')
 const counterpartiesWarning = ref('')
 const selectedCounterpartyId = ref('')
-const counterpartiesDropdownOpen = ref(false)
+const counterpartyQuery = ref('')
+
+const LAST_COUNTERPARTY_KEY = 'litcom52-last-counterparty-id'
+const MAX_VISIBLE_COUNTERPARTIES = 24
+const EN_LAYOUT = '`qwertyuiop[]asdfghjkl;\'zxcvbnm,./'
+const RU_LAYOUT = 'ёйцукенгшщзхъфывапролджэячсмитьбю.'
+
+function makeLayoutMap(from, to) {
+  const map = Object.create(null)
+  for (let i = 0; i < from.length; i += 1) {
+    map[from[i]] = to[i]
+  }
+  return map
+}
+
+const EN_TO_RU = makeLayoutMap(EN_LAYOUT, RU_LAYOUT)
+const RU_TO_EN = makeLayoutMap(RU_LAYOUT, EN_LAYOUT)
+
+function swapLayout(value, map) {
+  return String(value || '')
+    .split('')
+    .map((char) => map[char] || char)
+    .join('')
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replaceAll('ё', 'е')
+    .replace(/[^a-zа-я0-9]+/gi, ' ')
+    .trim()
+}
+
+function makeSearchForms(value) {
+  const raw = String(value || '').toLowerCase().trim()
+  if (!raw) return []
+  const forms = new Set([
+    normalizeText(raw),
+    normalizeText(swapLayout(raw, EN_TO_RU)),
+    normalizeText(swapLayout(raw, RU_TO_EN)),
+  ])
+  return [...forms].filter(Boolean)
+}
 
 const selectedCounterparty = computed(
   () => counterparties.value.find((item) => item.id === selectedCounterpartyId.value) || null,
+)
+
+const indexedCounterparties = computed(() =>
+  counterparties.value.map((item) => {
+    const base = `${item.name || ''} ${item.description || ''} ${item.contact || ''}`
+    return {
+      item,
+      searchBlob: normalizeText(base),
+      searchBlobRu: normalizeText(swapLayout(base.toLowerCase(), EN_TO_RU)),
+      searchBlobEn: normalizeText(swapLayout(base.toLowerCase(), RU_TO_EN)),
+      nameNorm: normalizeText(item.name || ''),
+    }
+  }),
+)
+
+const matchedCounterparties = computed(() => {
+  const forms = makeSearchForms(counterpartyQuery.value)
+  const list = indexedCounterparties.value
+  if (!forms.length) return list.map((entry) => entry.item)
+
+  const ranked = []
+  for (const entry of list) {
+    let score = 0
+    let matched = false
+    for (const form of forms) {
+      const tokens = form.split(/\s+/).filter(Boolean)
+      const fits = tokens.every(
+        (token) =>
+          entry.searchBlob.includes(token) ||
+          entry.searchBlobRu.includes(token) ||
+          entry.searchBlobEn.includes(token),
+      )
+      if (!fits) continue
+      matched = true
+      score += 1
+      if (entry.nameNorm.startsWith(form)) score += 6
+      else if (entry.nameNorm.includes(form)) score += 3
+    }
+    if (matched) ranked.push({ score, name: entry.item.name || '', item: entry.item })
+  }
+
+  ranked.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'ru'))
+  return ranked.map((entry) => entry.item)
+})
+
+const visibleCounterparties = computed(() =>
+  matchedCounterparties.value.slice(0, MAX_VISIBLE_COUNTERPARTIES),
+)
+
+const hasMoreCounterparties = computed(
+  () => matchedCounterparties.value.length > visibleCounterparties.value.length,
 )
 
 const canSubmit = computed(
@@ -113,7 +206,13 @@ function removeLine(id) {
 
 function selectCounterparty(id) {
   selectedCounterpartyId.value = id
-  counterpartiesDropdownOpen.value = false
+  const selected = counterparties.value.find((item) => item.id === id)
+  if (selected?.name) counterpartyQuery.value = selected.name
+  try {
+    localStorage.setItem(LAST_COUNTERPARTY_KEY, id)
+  } catch {
+    // ignore
+  }
 }
 
 async function loadCounterparties() {
@@ -124,6 +223,14 @@ async function loadCounterparties() {
     const { rows, warning } = await fetchCounterpartiesFromMoySklad()
     counterparties.value = rows
     counterpartiesWarning.value = warning
+    try {
+      const savedId = localStorage.getItem(LAST_COUNTERPARTY_KEY) || ''
+      if (savedId && rows.some((item) => item.id === savedId)) {
+        selectCounterparty(savedId)
+      }
+    } catch {
+      // ignore
+    }
   } catch (error) {
     counterpartiesError.value = error instanceof Error ? error.message : 'Не удалось загрузить контрагентов.'
   } finally {
@@ -246,38 +353,45 @@ onMounted(loadCounterparties)
         <form class="panel reveal reveal-delay-1" @submit.prevent="submit">
           <h2>Контакты</h2>
           <div class="counterparty-group">
-            <details
-              class="counterparty-dropdown"
-              :open="counterpartiesDropdownOpen"
-              @toggle="counterpartiesDropdownOpen = $event.target.open"
-            >
-              <summary>
-                {{ selectedCounterparty ? selectedCounterparty.name : 'Выберите контрагента' }}
-              </summary>
-              <div class="counterparty-list">
-                <p v-if="isCounterpartiesLoading" class="hint muted">Загружаем контрагентов...</p>
-                <p v-else-if="counterpartiesError" class="hint error">{{ counterpartiesError }}</p>
-                <p v-else-if="counterpartiesWarning" class="hint muted">{{ counterpartiesWarning }}</p>
-                <p v-else-if="!counterparties.length" class="hint muted">Список контрагентов пуст.</p>
-                <label
-                  v-for="counterparty in counterparties"
-                  :key="counterparty.id"
-                  class="counterparty-option"
-                >
-                  <input
-                    type="radio"
-                    name="counterparty"
-                    :value="counterparty.id"
-                    :checked="counterparty.id === selectedCounterpartyId"
-                    @change="selectCounterparty(counterparty.id)"
-                  />
-                  <span>
-                    <strong>{{ counterparty.name }}</strong>
-                    <small class="muted">{{ counterparty.description || 'Контакт не указан' }}</small>
-                  </span>
-                </label>
-              </div>
-            </details>
+            <label class="counterparty-search">
+              <span class="muted">Кто заказывает</span>
+              <input
+                v-model="counterpartyQuery"
+                type="text"
+                placeholder="Начните вводить название, телефон или email"
+                autocomplete="off"
+              />
+            </label>
+            <div class="counterparty-list">
+              <p v-if="isCounterpartiesLoading" class="hint muted">Загружаем контрагентов...</p>
+              <p v-else-if="counterpartiesError" class="hint error">{{ counterpartiesError }}</p>
+              <p v-else-if="counterpartiesWarning" class="hint muted">{{ counterpartiesWarning }}</p>
+              <p v-else-if="!counterparties.length" class="hint muted">Список контрагентов пуст.</p>
+              <p v-else-if="counterpartyQuery.trim() && !matchedCounterparties.length" class="hint muted">
+                Ничего не найдено. Попробуйте имя, телефон или email без точного совпадения.
+              </p>
+              <label
+                v-for="counterparty in visibleCounterparties"
+                :key="counterparty.id"
+                class="counterparty-option"
+              >
+                <input
+                  type="radio"
+                  name="counterparty"
+                  :value="counterparty.id"
+                  :checked="counterparty.id === selectedCounterpartyId"
+                  @change="selectCounterparty(counterparty.id)"
+                />
+                <span>
+                  <strong>{{ counterparty.name }}</strong>
+                  <small class="muted">{{ counterparty.description || 'Контакт не указан' }}</small>
+                </span>
+              </label>
+              <p v-if="hasMoreCounterparties" class="hint muted">
+                Показаны первые {{ visibleCounterparties.length }} из {{ matchedCounterparties.length }}.
+                Уточните запрос, чтобы быстрее найти нужного.
+              </p>
+            </div>
             <p v-if="selectedCounterparty?.contact" class="hint muted">
               Контакт: {{ selectedCounterparty.contact }}
             </p>
@@ -474,25 +588,14 @@ textarea:focus {
   color: var(--danger-text);
 }
 
-.counterparty-dropdown {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow: hidden;
-  background: var(--inset-soft);
-}
-
-.counterparty-dropdown summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 0.8rem 0.9rem;
-}
-
-.counterparty-dropdown summary::-webkit-details-marker {
-  display: none;
+.counterparty-search {
+  gap: 0.35rem;
 }
 
 .counterparty-list {
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--inset-soft);
   max-height: 260px;
   overflow: auto;
   padding: 0.5rem;
