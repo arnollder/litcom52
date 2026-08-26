@@ -41,6 +41,7 @@ const counterpartiesError = ref('')
 const counterpartiesWarning = ref('')
 const selectedCounterpartyId = ref('')
 const counterpartyQuery = ref('')
+const counterpartyResultsOpen = ref(false)
 
 const LAST_COUNTERPARTY_KEY = 'litcom52-last-counterparty-id'
 const MAX_VISIBLE_COUNTERPARTIES = 24
@@ -103,11 +104,10 @@ const indexedCounterparties = computed(() =>
 
 const matchedCounterparties = computed(() => {
   const forms = makeSearchForms(counterpartyQuery.value)
-  const list = indexedCounterparties.value
-  if (!forms.length) return list.map((entry) => entry.item)
+  if (!forms.length) return []
 
   const ranked = []
-  for (const entry of list) {
+  for (const entry of indexedCounterparties.value) {
     let score = 0
     let matched = false
     for (const form of forms) {
@@ -204,10 +204,16 @@ function removeLine(id) {
   cart.setQty(id, 0)
 }
 
+function onCounterpartyQueryInput() {
+  selectedCounterpartyId.value = ''
+  counterpartyResultsOpen.value = Boolean(counterpartyQuery.value.trim())
+}
+
 function selectCounterparty(id) {
   selectedCounterpartyId.value = id
   const selected = counterparties.value.find((item) => item.id === id)
   if (selected?.name) counterpartyQuery.value = selected.name
+  counterpartyResultsOpen.value = false
   try {
     localStorage.setItem(LAST_COUNTERPARTY_KEY, id)
   } catch {
@@ -360,14 +366,15 @@ onMounted(loadCounterparties)
                 type="text"
                 placeholder="Начните вводить название, телефон или email"
                 autocomplete="off"
+                @input="onCounterpartyQueryInput"
               />
             </label>
-            <div class="counterparty-list">
-              <p v-if="isCounterpartiesLoading" class="hint muted">Загружаем контрагентов...</p>
-              <p v-else-if="counterpartiesError" class="hint error">{{ counterpartiesError }}</p>
-              <p v-else-if="counterpartiesWarning" class="hint muted">{{ counterpartiesWarning }}</p>
-              <p v-else-if="!counterparties.length" class="hint muted">Список контрагентов пуст.</p>
-              <p v-else-if="counterpartyQuery.trim() && !matchedCounterparties.length" class="hint muted">
+            <p v-if="isCounterpartiesLoading" class="hint muted">Загружаем контрагентов...</p>
+            <p v-else-if="counterpartiesError" class="hint error">{{ counterpartiesError }}</p>
+            <p v-else-if="counterpartiesWarning" class="hint muted">{{ counterpartiesWarning }}</p>
+            <div v-else-if="counterpartyResultsOpen" class="counterparty-list">
+              <p v-if="!counterparties.length" class="hint muted">Список контрагентов пуст.</p>
+              <p v-else-if="!matchedCounterparties.length" class="hint muted">
                 Ничего не найдено. Попробуйте имя, телефон или email без точного совпадения.
               </p>
               <label
