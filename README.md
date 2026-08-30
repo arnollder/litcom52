@@ -22,6 +22,8 @@ npm run dev
 Прод: [https://litkom-m52.ru/](https://litkom-m52.ru/) (`root@62.113.110.31`, каталог `/opt/litcom52`).
 Админка: [https://admin.litkom-m52.ru/](https://admin.litkom-m52.ru/) (отдельный поддомен и PWA).
 
+Стабильность с мобильных сетей: [deploy/CLOUDFLARE.md](deploy/CLOUDFLARE.md) — прокси Cloudflare (Free) + nginx real IP на VPS.
+
 Деплой с локальной машины:
 
 ```bash

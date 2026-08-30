@@ -50,6 +50,12 @@ sudo -u litcom npm run build
 echo "==> restart litcom52"
 systemctl restart litcom52
 sleep 2
+
+if [[ -x "$DEST_DIR/deploy/setup-cloudflare-origin.sh" ]]; then
+  echo "==> cloudflare nginx real-ip"
+  bash "$DEST_DIR/deploy/setup-cloudflare-origin.sh"
+fi
+
 systemctl is-active litcom52 nginx
 curl -sS -o /dev/null -w "home:%{http_code}\n" http://127.0.0.1:4173/
 curl -sS -o /dev/null -w "health:%{http_code}\n" http://127.0.0.1:4173/healthz
