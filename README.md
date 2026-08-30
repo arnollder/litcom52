@@ -81,6 +81,26 @@ Endpoint: `GET /api/stock` (свободный остаток = stock − reserv
 
 Работает при `npm run dev` / `npm run preview` / `npm start`. Без API будут показаны остатки из `catalog.json`.
 
+## Push-уведомления при отгрузке
+
+На checkout пользователь **сохраняет контрагента** (в `localStorage`). После выбора можно включить push — подписка привязывается к `counterpartyId`.
+
+Когда в админке заказ переводят в **«Отгружен»**, сервер шлёт push только подписчикам с тем же контрагентом.
+
+Настройка на VPS (один раз):
+
+```bash
+npm run generate:vapid
+# добавить VAPID_* в /opt/litcom52/.env
+systemctl restart litcom52
+```
+
+API:
+
+- `GET /api/push/vapid-public-key`
+- `POST /api/push/subscribe` — `{ counterpartyId, counterpartyName, subscription }`
+- `DELETE /api/push/subscribe` — `{ endpoint }`
+
 ## Синхронизация каталога из МойСклад
 
 1. Скопируйте `.env.example` в `.env` и укажите доступ:

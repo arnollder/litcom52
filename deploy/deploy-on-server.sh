@@ -30,6 +30,7 @@ rsync -a --delete \
   --exclude .env \
   --exclude .env.\* \
   --exclude data/orders.json \
+  --exclude data/push-subscriptions.json \
   --exclude data/sync.lock \
   --exclude _work \
   "${SRC_DIR}/" "${DEST_DIR}/"

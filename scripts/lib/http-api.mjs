@@ -18,6 +18,11 @@ import {
 import { fetchLiveStockMap } from './fetch-stock.mjs'
 import { getAdminReportMetrics } from './admin-reports.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
+import {
+  removePushSubscription,
+  upsertPushSubscription,
+} from './push-subscriptions.mjs'
+import { getVapidPublicKey, notifyOrderShipped } from './web-push-notify.mjs'
 
 export function sendJson(res, status, payload) {
   res.statusCode = status
@@ -195,7 +200,18 @@ async function applyAdminStatus(orderId, requestedStatus) {
         },
       })
     }
-    return getCustomerOrderForAdmin(resolvedMoySkladId)
+    const updated = await getCustomerOrderForAdmin(resolvedMoySkladId)
+    const counterpartyId = updated?.customer?.counterparty?.id
+    if (counterpartyId) {
+      notifyOrderShipped({
+        counterpartyId,
+        counterpartyName: updated.customer?.counterparty?.name || '',
+        orderName: updated.moySklad?.name || '',
+      }).catch((err) => {
+        console.error('[push] shipped notify failed', err)
+      })
+    }
+    return updated
   }
 
   if (status === 'new') {
@@ -287,11 +303,72 @@ export async function handleAdminReports(req, res) {
   }
 }
 
+export async function handlePushVapidPublicKey(req, res) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'GET, OPTIONS')
+    return
+  }
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  await loadEnvFromFile()
+  const publicKey = getVapidPublicKey()
+  if (!publicKey) {
+    sendJson(res, 503, { ok: false, error: 'Push не настроен на сервере (VAPID keys)' })
+    return
+  }
+  sendJson(res, 200, { ok: true, publicKey })
+}
+
+export async function handlePushSubscribe(req, res) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'POST, DELETE, OPTIONS')
+    return
+  }
+
+  try {
+    await loadEnvFromFile()
+    const body = await readJsonBody(req)
+
+    if (req.method === 'DELETE') {
+      const removed = await removePushSubscription(body.endpoint)
+      sendJson(res, 200, { ok: true, removed })
+      return
+    }
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'Method not allowed' })
+      return
+    }
+
+    const row = await upsertPushSubscription({
+      counterpartyId: body.counterpartyId,
+      counterpartyName: body.counterpartyName,
+      subscription: body.subscription,
+    })
+    sendJson(res, 200, { ok: true, id: row.id })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Push subscribe failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
 /**
  * Returns true if the request was handled.
  */
 export async function handleApiRequest(req, res) {
   const pathname = pathOnly(req.url || '/')
+
+  if (pathname === '/api/push/vapid-public-key') {
+    await handlePushVapidPublicKey(req, res)
+    return true
+  }
+  if (pathname === '/api/push/subscribe') {
+    await handlePushSubscribe(req, res)
+    return true
+  }
 
   if (pathname === '/api/orders/reserve') {
     await handleReserveOrder(req, res)
