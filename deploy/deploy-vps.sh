@@ -21,6 +21,7 @@ rsync -az --delete \
   --exclude .env.\* \
   --exclude data/orders.json \
   --exclude data/push-subscriptions.json \
+  --exclude data/push-poller-state.json \
   --exclude data/sync.lock \
   -e "ssh -i ${SSH_KEY} -o BatchMode=yes -o ConnectTimeout=15" \
   "${ROOT_DIR}/" "${HOST}:${REMOTE_DIR}/"

@@ -46,22 +46,33 @@ function subscriptionEndpoint(subscription) {
   return String(subscription?.endpoint || '').trim()
 }
 
+function normalizeKeys(input) {
+  const keys = input?.keys || input?.subscription?.keys || {}
+  const p256dh = String(keys.p256dh || '').trim()
+  const auth = String(keys.auth || '').trim()
+  if (!p256dh || !auth) return null
+  return { p256dh, auth }
+}
+
+function rowAudience(row) {
+  if (row?.audience === 'admin' || row?.audience === 'customer') return row.audience
+  return row?.counterpartyId ? 'customer' : 'admin'
+}
+
+function toWebPushSubscription(row) {
+  const keys = normalizeKeys(row)
+  const endpoint = subscriptionEndpoint(row)
+  if (!endpoint || !keys) return null
+  return { endpoint, keys }
+}
+
 /**
- * Save or update a browser push subscription for a MoySklad counterparty.
+ * Save or update an admin browser push subscription.
  */
-export async function upsertPushSubscription({
-  counterpartyId,
-  counterpartyName = '',
-  subscription,
-}) {
-  const cpId = String(counterpartyId || '').trim()
+export async function upsertAdminPushSubscription(subscription) {
   const endpoint = subscriptionEndpoint(subscription)
-  if (!cpId) {
-    const error = new Error('Не указан контрагент')
-    error.status = 400
-    throw error
-  }
-  if (!endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+  const keys = normalizeKeys(subscription)
+  if (!endpoint || !keys) {
     const error = new Error('Некорректная push-подписка')
     error.status = 400
     throw error
@@ -73,10 +84,53 @@ export async function upsertPushSubscription({
 
   const row = {
     id: index >= 0 ? store.subscriptions[index].id : randomUUID(),
+    audience: 'admin',
+    endpoint,
+    keys,
+    createdAt: index >= 0 ? store.subscriptions[index].createdAt : now,
+    updatedAt: now,
+  }
+
+  if (index >= 0) store.subscriptions[index] = row
+  else store.subscriptions.push(row)
+
+  await writeStore(store)
+  return row
+}
+
+/**
+ * Save or update a browser push subscription for a MoySklad counterparty.
+ */
+export async function upsertPushSubscription({
+  counterpartyId,
+  counterpartyName = '',
+  subscription,
+}) {
+  const cpId = String(counterpartyId || '').trim()
+  const endpoint = subscriptionEndpoint(subscription)
+  const keys = normalizeKeys(subscription)
+  if (!cpId) {
+    const error = new Error('Не указан контрагент')
+    error.status = 400
+    throw error
+  }
+  if (!endpoint || !keys) {
+    const error = new Error('Некорректная push-подписка')
+    error.status = 400
+    throw error
+  }
+
+  const store = await readStore()
+  const now = new Date().toISOString()
+  const index = store.subscriptions.findIndex((row) => row.endpoint === endpoint)
+
+  const row = {
+    id: index >= 0 ? store.subscriptions[index].id : randomUUID(),
+    audience: 'customer',
     counterpartyId: cpId,
     counterpartyName: String(counterpartyName || '').trim(),
     endpoint,
-    subscription,
+    keys,
     createdAt: index >= 0 ? store.subscriptions[index].createdAt : now,
     updatedAt: now,
   }
@@ -104,11 +158,22 @@ export async function removePushSubscription(endpoint) {
   return removed
 }
 
+export async function listAdminPushSubscriptions() {
+  const store = await readStore()
+  return store.subscriptions
+    .filter((row) => rowAudience(row) === 'admin')
+    .map((row) => toWebPushSubscription(row))
+    .filter(Boolean)
+}
+
 export async function listPushSubscriptionsForCounterparty(counterpartyId) {
   const cpId = String(counterpartyId || '').trim()
   if (!cpId) return []
   const store = await readStore()
-  return store.subscriptions.filter((row) => row.counterpartyId === cpId)
+  return store.subscriptions
+    .filter((row) => rowAudience(row) === 'customer' && row.counterpartyId === cpId)
+    .map((row) => ({ ...toWebPushSubscription(row), id: row.id }))
+    .filter((row) => row.endpoint)
 }
 
 export async function removePushSubscriptionById(id) {

@@ -12,6 +12,7 @@ import AdminOrders from '../components/AdminOrders.vue'
 import AdminReports from '../components/AdminReports.vue'
 import InstallAppButton from '../components/InstallAppButton.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
+import { syncAppBadge, useAdminPush } from '../composables/useAdminPush.js'
 
 const POLL_MS = 15_000
 
@@ -32,6 +33,20 @@ const flashIds = ref(new Set())
 let pollTimer = null
 let audioCtx = null
 let ordersInFlight = false
+
+const {
+  supported: pushSupported,
+  enabled: pushEnabled,
+  permission: pushPermission,
+  busy: pushBusy,
+  error: pushError,
+  canEnable: canEnablePush,
+  canDisable: canDisablePush,
+  canRetryDenied: canRetryDeniedPush,
+  enable: enablePush,
+  disable: disablePush,
+  syncSubscription: syncPushSubscription,
+} = useAdminPush()
 
 const filteredOrders = computed(() => {
   if (filter.value === 'all') return orders.value
@@ -107,6 +122,7 @@ async function loadOrders({ silent = false } = {}) {
 
     orders.value = incoming
     newCount.value = result.newCount
+    syncAppBadge(result.newCount)
     knownIds.value = nextIds
     lastSyncedAt.value = new Date().toISOString()
     // Remember only after the server accepted the token (installed PWA reuses it).
@@ -133,6 +149,7 @@ function login() {
   error.value = ''
   knownIds.value = new Set()
   loadOrders()
+  syncPushSubscription()
 }
 
 function logout() {
@@ -141,6 +158,7 @@ function logout() {
   activeSection.value = 'orders'
   orders.value = []
   newCount.value = 0
+  syncAppBadge(0)
   stopPolling()
 }
 
@@ -151,6 +169,7 @@ async function setStatus(order, status) {
     const updated = await updateAdminOrderStatus(order.id, status)
     orders.value = orders.value.map((item) => (item.id === updated.id ? updated : item))
     newCount.value = orders.value.filter((item) => item.status === 'new').length
+    syncAppBadge(newCount.value)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Не удалось обновить статус'
     if (err?.status === 401) logout()
@@ -198,6 +217,7 @@ onMounted(() => {
   if (isAuthed.value) {
     loadOrders()
     if (activeSection.value === 'orders') startPolling()
+    syncPushSubscription()
   }
 })
 
@@ -237,8 +257,18 @@ onUnmounted(stopPolling)
               Новых: {{ newCount }}
             </span>
             <InstallAppButton variant="header" label="Установить админку" />
+            <button
+              v-if="pushSupported"
+              type="button"
+              class="btn btn-ghost push-btn"
+              :disabled="pushBusy || (!canEnablePush && !canDisablePush && !canRetryDeniedPush)"
+              @click="pushEnabled ? disablePush() : enablePush()"
+            >
+              {{ pushEnabled ? 'Push: вкл' : pushPermission === 'denied' ? 'Push: запрещён' : 'Push: выкл' }}
+            </button>
             <ThemeToggle />
           </div>
+          <p v-if="pushError" class="push-error">{{ pushError }}</p>
           <span class="muted sync">
             {{ lastSyncedAt ? `Обновлено ${formatDate(lastSyncedAt)}` : 'Ожидание…' }}
           </span>
@@ -397,6 +427,17 @@ onUnmounted(stopPolling)
 .error {
   color: var(--danger-text);
   margin: 0 0 1rem;
+}
+
+.push-error {
+  color: var(--danger-text);
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.push-btn {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.65rem;
 }
 
 @keyframes pulse {

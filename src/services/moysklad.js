@@ -234,3 +234,54 @@ export async function fetchAdminReports({ fromDate = '', toDate = '' } = {}) {
     stockTotal: Number(data?.metrics?.stockTotal) || 0,
   }
 }
+
+export async function fetchPushVapidPublicKey() {
+  const response = await fetch(`${getApiBase()}/api/admin/push/vapid-public-key`, {
+    method: 'GET',
+    headers: { Accept: 'application/json;charset=utf-8' },
+    cache: 'no-store',
+  })
+
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok || !data.publicKey) {
+    const error = new Error(data?.error || `Push недоступен (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+
+  return { publicKey: data.publicKey }
+}
+
+export async function subscribeAdminPush(subscription) {
+  const response = await fetch(`${getApiBase()}/api/admin/push/subscribe`, {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify({ subscription }),
+  })
+
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось подписаться на push (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+
+  return data
+}
+
+export async function unsubscribeAdminPush(subscription) {
+  const response = await fetch(`${getApiBase()}/api/admin/push/subscribe`, {
+    method: 'DELETE',
+    headers: adminHeaders(),
+    body: JSON.stringify({ subscription }),
+  })
+
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось отписаться от push (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+
+  return data
+}

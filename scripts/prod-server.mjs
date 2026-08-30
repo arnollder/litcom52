@@ -4,6 +4,7 @@ import { createServer } from 'node:http'
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { extname, join, normalize, resolve, sep } from 'node:path'
+import { startAdminPushPoller } from './lib/admin-push-poller.mjs'
 import { handleApiRequest, pathOnly, sendJson } from './lib/http-api.mjs'
 import { loadEnvFromFile } from './lib/moysklad-env.mjs'
 
@@ -95,6 +96,7 @@ const server = createServer(async (req, res) => {
 })
 
 await loadEnvFromFile()
+startAdminPushPoller()
 server.listen(PORT, HOST, () => {
   console.log(`litcom52 listening on http://${HOST}:${PORT}`)
 })

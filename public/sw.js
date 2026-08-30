@@ -1,4 +1,4 @@
-/* Service worker — PWA install + push notifications. */
+/* Service worker — PWA install + push notifications (admin + customer). */
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
@@ -11,35 +11,54 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(fetch(event.request))
 })
 
-self.addEventListener('push', (event) => {
-  let payload = {
+function parsePushPayload(event) {
+  const fallback = {
     title: 'Литком М52',
-    body: 'Заказ отгружен — можно забирать.',
-    url: '/shop',
+    body: 'Новое уведомление',
+    badge: null,
+    url: '/',
+    tag: 'litcom52',
   }
-
+  if (!event.data) return fallback
   try {
-    if (event.data) {
-      payload = { ...payload, ...event.data.json() }
-    }
+    return { ...fallback, ...event.data.json() }
   } catch {
-    // keep defaults
+    return fallback
   }
+}
 
+async function setBadgeCount(count) {
+  if (count == null) return
+  const value = Number(count) || 0
+  if (value > 0 && 'setAppBadge' in self.navigator) {
+    await self.navigator.setAppBadge(value)
+    return
+  }
+  if ('clearAppBadge' in self.navigator) {
+    await self.navigator.clearAppBadge()
+  }
+}
+
+self.addEventListener('push', (event) => {
+  const data = parsePushPayload(event)
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: '/icon-192-v4.png',
-      badge: '/icon-192-v4.png',
-      tag: 'litcom52-shipped',
-      data: { url: payload.url || '/shop' },
-    }),
+    (async () => {
+      await self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: '/icon-192-v4.png',
+        badge: '/icon-192-v4.png',
+        tag: data.tag || 'litcom52',
+        renotify: true,
+        data: { url: data.url || '/' },
+      })
+      await setBadgeCount(data.badge)
+    })(),
   )
 })
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification.data?.url || '/shop'
+  const targetUrl = event.notification.data?.url || '/'
   const absolute = new URL(targetUrl, self.location.origin).href
 
   event.waitUntil(
