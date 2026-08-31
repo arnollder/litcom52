@@ -17,6 +17,7 @@ dist-ssr
 data/orders.json
 data/push-subscriptions.json
 data/push-poller-state.json
+.tools/
 
 # Editor directories and files
 .vscode/*
