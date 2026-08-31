@@ -2,49 +2,46 @@
 
 import webpush from 'web-push'
 import {
-  listPushSubscriptions,
-  removePushSubscriptionByEndpoint,
-} from './push-subscriptions-store.mjs'
+  listAdminPushSubscriptions,
+  listPushSubscriptionsForCounterparty,
+  removePushSubscriptionById,
+  removePushSubscription,
+} from './push-subscriptions.mjs'
 
 let configured = false
 
-function getVapidSubject() {
-  const subject = String(process.env.VAPID_SUBJECT || '').trim()
-  if (subject) return subject
-  return 'mailto:admin@litkom-m52.ru'
+function readVapidConfig() {
+  const publicKey = String(process.env.VAPID_PUBLIC_KEY || '').trim()
+  const privateKey = String(process.env.VAPID_PRIVATE_KEY || '').trim()
+  const subject = String(process.env.VAPID_SUBJECT || 'mailto:litkom-m52@litkom-m52.ru').trim()
+  if (!publicKey || !privateKey) return null
+  return { publicKey, privateKey, subject }
 }
 
 export function isWebPushConfigured() {
-  const publicKey = String(process.env.VAPID_PUBLIC_KEY || '').trim()
-  const privateKey = String(process.env.VAPID_PRIVATE_KEY || '').trim()
-  return Boolean(publicKey && privateKey)
+  return Boolean(readVapidConfig())
 }
 
 export function getVapidPublicKey() {
-  return String(process.env.VAPID_PUBLIC_KEY || '').trim()
+  return readVapidConfig()?.publicKey || ''
 }
 
-function ensureWebPush() {
-  if (configured) return
-  const publicKey = getVapidPublicKey()
-  const privateKey = String(process.env.VAPID_PRIVATE_KEY || '').trim()
-  if (!publicKey || !privateKey) {
-    const error = new Error('Web Push не настроен: задайте VAPID_PUBLIC_KEY и VAPID_PRIVATE_KEY в .env')
-    error.status = 503
-    throw error
-  }
-  webpush.setVapidDetails(getVapidSubject(), publicKey, privateKey)
+function ensureConfigured() {
+  if (configured) return readVapidConfig()
+  const config = readVapidConfig()
+  if (!config) return null
+  webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey)
   configured = true
+  return config
 }
 
-export async function sendPushToAll(payload) {
-  if (!isWebPushConfigured()) return { sent: 0, failed: 0, skipped: true }
-
-  ensureWebPush()
-  const subscriptions = await listPushSubscriptions()
+async function sendPushToSubscriptions(subscriptions, payload, { onDeadEndpoint } = {}) {
+  if (!ensureConfigured()) {
+    console.warn('[push] VAPID keys not configured — skip notify')
+    return { sent: 0, failed: 0, skipped: true, reason: 'no-vapid' }
+  }
   if (!subscriptions.length) {
-    console.warn('[web-push] no subscriptions, skip', payload?.title || '')
-    return { sent: 0, failed: 0, skipped: false }
+    return { sent: 0, failed: 0, skipped: false, reason: 'no-subscribers' }
   }
 
   const body = JSON.stringify(payload)
@@ -53,22 +50,17 @@ export async function sendPushToAll(payload) {
 
   for (const row of subscriptions) {
     try {
-      await webpush.sendNotification(
-        {
-          endpoint: row.endpoint,
-          keys: row.keys,
-        },
-        body,
-        { TTL: 60 * 60 },
-      )
+      await webpush.sendNotification(row, body, { TTL: 60 * 60 })
       sent += 1
     } catch (error) {
       failed += 1
       const status = error?.statusCode || error?.status
+      console.error('[push] send failed', row.endpoint?.slice(0, 48), status, error?.message || error)
       if (status === 404 || status === 410) {
-        await removePushSubscriptionByEndpoint(row.endpoint)
+        if (onDeadEndpoint) await onDeadEndpoint(row)
+        else if (row.id) await removePushSubscriptionById(row.id)
+        else if (row.endpoint) await removePushSubscription(row.endpoint)
       }
-      console.error('[web-push] delivery failed', row.endpoint.slice(0, 48), error?.message || error)
     }
   }
 
@@ -85,7 +77,8 @@ export async function notifyNewOrders({ newCount, orderName = '', orderId = '' }
         ? 'Поступил новый заказ в админку'
         : `${count} заказов со статусом «Новый»`
 
-  return sendPushToAll({
+  const subscriptions = await listAdminPushSubscriptions()
+  return sendPushToSubscriptions(subscriptions, {
     title,
     body,
     badge: count,
@@ -103,10 +96,39 @@ export async function notifyOrderPaid({ orderName = '', orderId = '', paymentNam
         ? `Заказ №${orderName} отмечен как «Оплачен»`
         : 'Заказ переведён в статус «Оплачен»'
 
-  return sendPushToAll({
+  const subscriptions = await listAdminPushSubscriptions()
+  return sendPushToSubscriptions(subscriptions, {
     title,
     body,
     url: '/',
     tag: orderId ? `order-paid-${orderId}` : 'order-paid',
   })
+}
+
+/**
+ * Notify customer subscribers when an order is marked shipped in MoySklad.
+ */
+export async function notifyOrderShipped(payload) {
+  const counterpartyId = String(payload?.counterpartyId || '').trim()
+  if (!counterpartyId) return { sent: 0, skipped: true, reason: 'no-counterparty' }
+
+  const rows = await listPushSubscriptionsForCounterparty(counterpartyId)
+  if (!rows.length) return { sent: 0, skipped: false, reason: 'no-subscribers' }
+
+  const orderLabel = payload.orderName ? `№${payload.orderName}` : 'ваш'
+  const party = payload.counterpartyName ? ` (${payload.counterpartyName})` : ''
+  const body = `Заказ ${orderLabel}${party} отгружен — можно забирать.`
+
+  return sendPushToSubscriptions(
+    rows,
+    {
+      title: 'Заказ готов к выдаче',
+      body,
+      url: '/shop',
+      tag: 'litcom52-shipped',
+    },
+    {
+      onDeadEndpoint: (row) => removePushSubscriptionById(row.id),
+    },
+  )
 }

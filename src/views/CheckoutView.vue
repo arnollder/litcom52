@@ -2,8 +2,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import QtyControl from '../components/QtyControl.vue'
+import PushNotifyButton from '../components/PushNotifyButton.vue'
 import { useCartStore } from '../stores/cart'
 import { fetchCounterpartiesFromMoySklad, reserveOrderInMoySklad } from '../services/moysklad'
+import { getSavedCounterparty, saveCounterparty } from '../utils/counterparty.js'
 
 const cart = useCartStore()
 const router = useRouter()
@@ -43,7 +45,6 @@ const selectedCounterpartyId = ref('')
 const counterpartyQuery = ref('')
 const counterpartyResultsOpen = ref(false)
 
-const LAST_COUNTERPARTY_KEY = 'litcom52-last-counterparty-id'
 const MAX_VISIBLE_COUNTERPARTIES = 24
 const EN_LAYOUT = '`qwertyuiop[]asdfghjkl;\'zxcvbnm,./'
 const RU_LAYOUT = 'ёйцукенгшщзхъфывапролджэячсмитьбю.'
@@ -227,6 +228,10 @@ async function submit() {
 
     reservedOrder.value = moySkladOrder
     submittedTotal.value = orderSnapshot.total
+    saveCounterparty({
+      id: selectedCounterparty.value.id,
+      name: selectedCounterparty.value.name,
+    })
     const order = {
       ...orderSnapshot,
       moySklad: moySkladOrder,
@@ -265,11 +270,7 @@ function selectCounterparty(id) {
   const selected = counterparties.value.find((item) => item.id === id)
   if (selected?.name) counterpartyQuery.value = selected.name
   counterpartyResultsOpen.value = false
-  try {
-    localStorage.setItem(LAST_COUNTERPARTY_KEY, id)
-  } catch {
-    // ignore
-  }
+  if (selected) saveCounterparty({ id: selected.id, name: selected.name })
 }
 
 async function loadCounterparties() {
@@ -280,13 +281,9 @@ async function loadCounterparties() {
     const { rows, warning } = await fetchCounterpartiesFromMoySklad()
     counterparties.value = rows
     counterpartiesWarning.value = warning
-    try {
-      const savedId = localStorage.getItem(LAST_COUNTERPARTY_KEY) || ''
-      if (savedId && rows.some((item) => item.id === savedId)) {
-        selectCounterparty(savedId)
-      }
-    } catch {
-      // ignore
+    const saved = getSavedCounterparty()
+    if (saved && rows.some((row) => row.id === saved.id)) {
+      selectCounterparty(saved.id)
     }
   } catch (error) {
     counterpartiesError.value = error instanceof Error ? error.message : 'Не удалось загрузить контрагентов.'
@@ -344,6 +341,8 @@ onMounted(loadCounterparties)
             </div>
           </dl>
         </div>
+
+        <PushNotifyButton variant="panel" />
 
         <div class="actions">
           <RouterLink class="btn btn-primary" to="/shop">Вернуться в каталог</RouterLink>
@@ -456,6 +455,7 @@ onMounted(loadCounterparties)
             <p v-else-if="selectedCounterparty" class="hint muted">
               У выбранного контрагента не заполнен контакт (телефон/email).
             </p>
+            <PushNotifyButton v-if="selectedCounterparty" variant="inline" />
           </div>
           <button class="btn btn-primary btn-block" type="submit" :disabled="!canSubmit">
             {{ isSubmitting ? 'Резервируем…' : 'Отправить заказ' }}

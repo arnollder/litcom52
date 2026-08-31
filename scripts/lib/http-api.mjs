@@ -11,8 +11,6 @@ import {
   isPaidLikeStatus,
   setCustomerOrderState,
 } from './customer-order-state.mjs'
-import { createDemandFromCustomerOrder } from './create-demand-from-customer-order.mjs'
-import { createPaymentInFromCustomerOrder } from './create-paymentin-from-customer-order.mjs'
 import {
   getCustomerOrderForAdmin,
   listCustomerOrdersForAdmin,
@@ -22,9 +20,14 @@ import { getAdminReportMetrics } from './admin-reports.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
 import {
   removePushSubscription,
+  upsertAdminPushSubscription,
   upsertPushSubscription,
-} from './push-subscriptions-store.mjs'
-import { getVapidPublicKey, isWebPushConfigured } from './web-push.mjs'
+} from './push-subscriptions.mjs'
+import {
+  getVapidPublicKey,
+  isWebPushConfigured,
+  notifyOrderShipped,
+} from './web-push.mjs'
 import { notifyPushForNewOrder, notifyPushForPaidOrder } from './admin-push-poller.mjs'
 
 export function sendJson(res, status, payload) {
@@ -129,7 +132,7 @@ export async function handleReserveOrder(req, res) {
       name: result?.name,
       moySklad: result,
     }).catch((pushError) => {
-      console.error('[web-push] reserve notify failed', pushError)
+      console.error('[push] reserve notify failed', pushError)
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Reserve failed'
@@ -176,15 +179,6 @@ async function applyAdminStatus(orderId, requestedStatus) {
   }
 
   if (status === 'paid') {
-    // Create Входящий платёж (paymentin) before flipping the workflow state.
-    let payment = null
-    try {
-      payment = await createPaymentInFromCustomerOrder(resolvedMoySkladId)
-    } catch (error) {
-      console.error('[paymentin] failed to create payment for', resolvedMoySkladId, error)
-      throw error
-    }
-
     const ms = await setCustomerOrderState(resolvedMoySkladId, 'Оплачен')
     if (local) {
       await updateOrderStatus(local.id, 'paid', {
@@ -193,18 +187,12 @@ async function applyAdminStatus(orderId, requestedStatus) {
           name: ms.name,
           href: ms.href,
           stateName: ms.stateName,
-          paymentId: payment?.id || null,
-          paymentName: payment?.name || null,
-          paymentHref: payment?.href || null,
         },
       })
     }
     const order = await getCustomerOrderForAdmin(resolvedMoySkladId)
-    notifyPushForPaidOrder({
-      ...order,
-      paymentName: payment?.name || '',
-    }).catch((pushError) => {
-      console.error('[web-push] paid notify failed', pushError)
+    notifyPushForPaidOrder(order).catch((pushError) => {
+      console.error('[push] paid notify failed', pushError)
     })
     return order
   }
@@ -219,15 +207,6 @@ async function applyAdminStatus(orderId, requestedStatus) {
       throw error
     }
 
-    // Create Отгрузка (demand) before flipping the workflow state.
-    let demand = null
-    try {
-      demand = await createDemandFromCustomerOrder(resolvedMoySkladId)
-    } catch (error) {
-      console.error('[demand] failed to create shipment for', resolvedMoySkladId, error)
-      throw error
-    }
-
     const ms = await setCustomerOrderState(resolvedMoySkladId, 'Отгружен')
     if (local) {
       await updateOrderStatus(local.id, 'shipped', {
@@ -236,13 +215,21 @@ async function applyAdminStatus(orderId, requestedStatus) {
           name: ms.name,
           href: ms.href,
           stateName: ms.stateName,
-          demandId: demand?.id || null,
-          demandName: demand?.name || null,
-          demandHref: demand?.href || null,
         },
       })
     }
-    return getCustomerOrderForAdmin(resolvedMoySkladId)
+    const updated = await getCustomerOrderForAdmin(resolvedMoySkladId)
+    const counterpartyId = updated?.customer?.counterparty?.id
+    if (counterpartyId) {
+      notifyOrderShipped({
+        counterpartyId,
+        counterpartyName: updated.customer?.counterparty?.name || '',
+        orderName: updated.moySklad?.name || '',
+      }).catch((err) => {
+        console.error('[push] shipped notify failed', err)
+      })
+    }
+    return updated
   }
 
   if (status === 'new') {
@@ -302,51 +289,6 @@ export async function handleAdminOrders(req, res, pathname) {
   }
 }
 
-export async function handleAdminPush(req, res, pathname) {
-  if (req.method === 'OPTIONS') {
-    corsPreflight(res, 'GET, POST, DELETE, OPTIONS')
-    return
-  }
-
-  try {
-    await loadEnvFromFile()
-
-    if (pathname === '/api/admin/push/vapid-public-key' && req.method === 'GET') {
-      if (!isWebPushConfigured()) {
-        sendJson(res, 503, { ok: false, error: 'Web Push не настроен на сервере' })
-        return
-      }
-      sendJson(res, 200, { ok: true, publicKey: getVapidPublicKey() })
-      return
-    }
-
-    assertAdmin(req)
-
-    if (pathname === '/api/admin/push/subscribe' && req.method === 'POST') {
-      if (!isWebPushConfigured()) {
-        sendJson(res, 503, { ok: false, error: 'Web Push не настроен на сервере' })
-        return
-      }
-      const body = await readJsonBody(req)
-      const row = await upsertPushSubscription(body.subscription || body)
-      sendJson(res, 200, { ok: true, id: row.id })
-      return
-    }
-
-    if (pathname === '/api/admin/push/subscribe' && req.method === 'DELETE') {
-      const body = await readJsonBody(req)
-      await removePushSubscription(body.subscription || body)
-      sendJson(res, 200, { ok: true, removed: true })
-      return
-    }
-
-    sendJson(res, 405, { error: 'Method not allowed' })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Admin push failed'
-    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
-  }
-}
-
 export async function handleAdminReports(req, res) {
   if (req.method === 'OPTIONS') {
     corsPreflight(res, 'GET, OPTIONS')
@@ -379,11 +321,118 @@ export async function handleAdminReports(req, res) {
   }
 }
 
+export async function handleAdminPush(req, res, pathname) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'GET, POST, DELETE, OPTIONS')
+    return
+  }
+
+  try {
+    await loadEnvFromFile()
+
+    if (pathname === '/api/admin/push/vapid-public-key' && req.method === 'GET') {
+      if (!isWebPushConfigured()) {
+        sendJson(res, 503, { ok: false, error: 'Web Push не настроен на сервере' })
+        return
+      }
+      sendJson(res, 200, { ok: true, publicKey: getVapidPublicKey() })
+      return
+    }
+
+    assertAdmin(req)
+
+    if (pathname === '/api/admin/push/subscribe' && req.method === 'POST') {
+      if (!isWebPushConfigured()) {
+        sendJson(res, 503, { ok: false, error: 'Web Push не настроен на сервере' })
+        return
+      }
+      const body = await readJsonBody(req)
+      const row = await upsertAdminPushSubscription(body.subscription || body)
+      sendJson(res, 200, { ok: true, id: row.id })
+      return
+    }
+
+    if (pathname === '/api/admin/push/subscribe' && req.method === 'DELETE') {
+      const body = await readJsonBody(req)
+      const endpoint = String(body.subscription?.endpoint || body.endpoint || '').trim()
+      const removed = await removePushSubscription(endpoint)
+      sendJson(res, 200, { ok: true, removed: removed > 0 })
+      return
+    }
+
+    sendJson(res, 405, { error: 'Method not allowed' })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Admin push failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
+export async function handlePushVapidPublicKey(req, res) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'GET, OPTIONS')
+    return
+  }
+  if (req.method !== 'GET') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  await loadEnvFromFile()
+  const publicKey = getVapidPublicKey()
+  if (!publicKey) {
+    sendJson(res, 503, { ok: false, error: 'Push не настроен на сервере (VAPID keys)' })
+    return
+  }
+  sendJson(res, 200, { ok: true, publicKey })
+}
+
+export async function handlePushSubscribe(req, res) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'POST, DELETE, OPTIONS')
+    return
+  }
+
+  try {
+    await loadEnvFromFile()
+    const body = await readJsonBody(req)
+
+    if (req.method === 'DELETE') {
+      const removed = await removePushSubscription(body.endpoint)
+      sendJson(res, 200, { ok: true, removed })
+      return
+    }
+
+    if (req.method !== 'POST') {
+      sendJson(res, 405, { error: 'Method not allowed' })
+      return
+    }
+
+    const row = await upsertPushSubscription({
+      counterpartyId: body.counterpartyId,
+      counterpartyName: body.counterpartyName,
+      subscription: body.subscription,
+    })
+    sendJson(res, 200, { ok: true, id: row.id })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Push subscribe failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
 /**
  * Returns true if the request was handled.
  */
 export async function handleApiRequest(req, res) {
   const pathname = pathOnly(req.url || '/')
+
+  if (pathname === '/api/push/vapid-public-key') {
+    await handlePushVapidPublicKey(req, res)
+    return true
+  }
+  if (pathname === '/api/push/subscribe') {
+    await handlePushSubscribe(req, res)
+    return true
+  }
 
   if (pathname === '/api/orders/reserve') {
     await handleReserveOrder(req, res)

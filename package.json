@@ -12,6 +12,7 @@
     "sync:moysklad:counterparties": "node ./scripts/sync-moysklad-counterparties.mjs",
     "sync:moysklad:all": "npm run sync:moysklad && npm run sync:moysklad:counterparties",
     "sync:moysklad:cron": "node ./scripts/cron-sync-moysklad.mjs",
+    "generate:vapid": "node ./scripts/generate-vapid-keys.mjs",
     "push:vapid-keys": "node ./scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {

@@ -22,6 +22,8 @@ npm run dev
 Прод: [https://litkom-m52.ru/](https://litkom-m52.ru/) (`root@62.113.110.31`, каталог `/opt/litcom52`).
 Админка: [https://admin.litkom-m52.ru/](https://admin.litkom-m52.ru/) (отдельный поддомен и PWA).
 
+Стабильность с мобильных сетей: [deploy/CLOUDFLARE.md](deploy/CLOUDFLARE.md) — прокси Cloudflare (Free) + nginx real IP на VPS.
+
 Деплой с локальной машины:
 
 ```bash
@@ -80,6 +82,26 @@ npm run sync:moysklad:counterparties
 Endpoint: `GET /api/stock` (свободный остаток = stock − reserve).
 
 Работает при `npm run dev` / `npm run preview` / `npm start`. Без API будут показаны остатки из `catalog.json`.
+
+## Push-уведомления при отгрузке
+
+На checkout пользователь **сохраняет контрагента** (в `localStorage`). После выбора можно включить push — подписка привязывается к `counterpartyId`.
+
+Когда в админке заказ переводят в **«Отгружен»**, сервер шлёт push только подписчикам с тем же контрагентом.
+
+Настройка на VPS (один раз):
+
+```bash
+npm run generate:vapid
+# добавить VAPID_* в /opt/litcom52/.env
+systemctl restart litcom52
+```
+
+API:
+
+- `GET /api/push/vapid-public-key`
+- `POST /api/push/subscribe` — `{ counterpartyId, counterpartyName, subscription }`
+- `DELETE /api/push/subscribe` — `{ endpoint }`
 
 ## Синхронизация каталога из МойСклад
 

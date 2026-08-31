@@ -1,4 +1,4 @@
-/* Service worker — PWA install + admin push notifications. */
+/* Service worker — PWA install + push notifications (admin + customer). */
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting())
 })
@@ -13,11 +13,11 @@ self.addEventListener('fetch', (event) => {
 
 function parsePushPayload(event) {
   const fallback = {
-    title: 'Новый заказ',
-    body: 'Поступил новый заказ в админку',
-    badge: 1,
+    title: 'Литком М52',
+    body: 'Новое уведомление',
+    badge: null,
     url: '/',
-    tag: 'new-orders',
+    tag: 'litcom52',
   }
   if (!event.data) return fallback
   try {
@@ -47,7 +47,7 @@ self.addEventListener('push', (event) => {
         body: data.body,
         icon: '/icon-192-v4.png',
         badge: '/icon-192-v4.png',
-        tag: data.tag || 'new-orders',
+        tag: data.tag || 'litcom52',
         renotify: true,
         data: { url: data.url || '/' },
       })
@@ -59,12 +59,17 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const targetUrl = event.notification.data?.url || '/'
+  const absolute = new URL(targetUrl, self.location.origin).href
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if ('focus' in client) return client.focus()
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          return client.focus()
+        }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl)
+      if (self.clients.openWindow) return self.clients.openWindow(absolute)
+      return undefined
     }),
   )
 })
