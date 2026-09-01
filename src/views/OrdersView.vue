@@ -1,6 +1,7 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import CounterpartySelect from '../components/CounterpartySelect.vue'
 import QtyControl from '../components/QtyControl.vue'
 import { fetchCustomerOrders, fetchLiveStock, updateCustomerOrder } from '../services/moysklad'
 import { getSavedCounterparty } from '../utils/counterparty.js'
@@ -63,6 +64,17 @@ function maxQtyForItem(item) {
   return Math.max(current, free + current, 99)
 }
 
+watch(
+  () => counterparty.value?.id,
+  (id, prev) => {
+    if (id === prev) return
+    cancelEdit()
+    if (id) loadOrders()
+    else orders.value = []
+  },
+  { immediate: true },
+)
+
 async function loadOrders() {
   if (!counterparty.value?.id) return
   isLoading.value = true
@@ -119,11 +131,6 @@ async function saveEdit(order) {
     isSaving.value = false
   }
 }
-
-onMounted(() => {
-  counterparty.value = getSavedCounterparty()
-  if (hasCounterparty.value) loadOrders()
-})
 </script>
 
 <template>
@@ -132,18 +139,10 @@ onMounted(() => {
       <div>
         <p class="eyebrow">Личный кабинет</p>
         <h1 class="display">Мои заказы</h1>
-        <p v-if="hasCounterparty" class="muted">
-          Контрагент: <strong>{{ counterparty.name }}</strong>
-        </p>
-        <p v-else class="muted">
-          Сначала выберите контрагента при оформлении — тогда здесь появится история заказов.
-        </p>
+        <p class="muted">Выберите контрагента — покажем историю его заказов.</p>
       </div>
-      <RouterLink v-if="!hasCounterparty" class="btn btn-primary" to="/checkout">
-        Перейти к оформлению
-      </RouterLink>
       <button
-        v-else
+        v-if="hasCounterparty"
         type="button"
         class="btn btn-ghost"
         :disabled="isLoading"
@@ -153,22 +152,22 @@ onMounted(() => {
       </button>
     </header>
 
-    <p v-if="error" class="error">{{ error }}</p>
-
-    <section v-if="!hasCounterparty" class="panel reveal">
-      <p>Контрагент сохраняется на странице оформления после выбора из списка МойСклад.</p>
+    <section class="panel reveal orders__picker">
+      <CounterpartySelect v-model="counterparty" input-name="orders-counterparty" label="Контрагент" />
     </section>
 
-    <section v-else-if="isLoading && !orders.length" class="panel reveal muted">
+    <p v-if="error" class="error">{{ error }}</p>
+
+    <section v-if="hasCounterparty && isLoading && !orders.length" class="panel reveal muted">
       Загружаем заказы…
     </section>
 
-    <section v-else-if="!orders.length" class="panel reveal">
+    <section v-else-if="hasCounterparty && !orders.length" class="panel reveal">
       <p class="muted">Заказов пока нет.</p>
       <RouterLink class="btn btn-primary" to="/shop">Перейти в каталог</RouterLink>
     </section>
 
-    <div v-else class="orders__list">
+    <div v-else-if="hasCounterparty" class="orders__list">
       <article
         v-for="order in orders"
         :key="order.id"
@@ -277,6 +276,10 @@ onMounted(() => {
   border-radius: var(--radius);
   background: var(--surface);
   padding: 1.15rem;
+}
+
+.orders__picker {
+  margin-bottom: 1rem;
 }
 
 .order-card {

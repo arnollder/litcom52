@@ -1,10 +1,10 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import QtyControl from '../components/QtyControl.vue'
-import PushNotifyButton from '../components/PushNotifyButton.vue'
+import CounterpartySelect from '../components/CounterpartySelect.vue'
 import { useCartStore } from '../stores/cart'
-import { fetchCounterpartiesFromMoySklad, reserveOrderInMoySklad } from '../services/moysklad'
+import { reserveOrderInMoySklad } from '../services/moysklad'
 import { getSavedCounterparty, saveCounterparty } from '../utils/counterparty.js'
 
 const cart = useCartStore()
@@ -37,162 +37,10 @@ async function copyPaymentPhone() {
   }, 2000)
 }
 
-const counterparties = ref([])
-const isCounterpartiesLoading = ref(false)
-const counterpartiesError = ref('')
-const counterpartiesWarning = ref('')
-const selectedCounterpartyId = ref('')
-const counterpartyQuery = ref('')
-const counterpartyResultsOpen = ref(false)
-
-const MAX_VISIBLE_COUNTERPARTIES = 24
-const EN_LAYOUT = '`qwertyuiop[]asdfghjkl;\'zxcvbnm,./'
-const RU_LAYOUT = 'ёйцукенгшщзхъфывапролджэячсмитьбю.'
-
-function makeLayoutMap(from, to) {
-  const map = Object.create(null)
-  for (let i = 0; i < from.length; i += 1) {
-    map[from[i]] = to[i]
-  }
-  return map
-}
-
-const EN_TO_RU = makeLayoutMap(EN_LAYOUT, RU_LAYOUT)
-const RU_TO_EN = makeLayoutMap(RU_LAYOUT, EN_LAYOUT)
-
-const CYR_TO_LAT = {
-  а: 'a',
-  б: 'b',
-  в: 'v',
-  г: 'g',
-  д: 'd',
-  е: 'e',
-  ё: 'e',
-  ж: 'zh',
-  з: 'z',
-  и: 'i',
-  й: 'y',
-  к: 'k',
-  л: 'l',
-  м: 'm',
-  н: 'n',
-  о: 'o',
-  п: 'p',
-  р: 'r',
-  с: 's',
-  т: 't',
-  у: 'u',
-  ф: 'f',
-  х: 'h',
-  ц: 'ts',
-  ч: 'ch',
-  ш: 'sh',
-  щ: 'sch',
-  ъ: '',
-  ы: 'y',
-  ь: '',
-  э: 'e',
-  ю: 'yu',
-  я: 'ya',
-}
-
-function swapLayout(value, map) {
-  return String(value || '')
-    .split('')
-    .map((char) => map[char] || char)
-    .join('')
-}
-
-function toLatinPhonetic(value) {
-  return String(value || '')
-    .toLowerCase()
-    .split('')
-    .map((char) => CYR_TO_LAT[char] ?? char)
-    .join('')
-}
-
-function normalizeText(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replaceAll('ё', 'е')
-    .replace(/[^a-zа-я0-9]+/gi, ' ')
-    .trim()
-}
-
-function makeSearchForms(value) {
-  const raw = String(value || '').toLowerCase().trim()
-  if (!raw) return []
-  const variants = [
-    raw,
-    swapLayout(raw, EN_TO_RU),
-    swapLayout(raw, RU_TO_EN),
-    toLatinPhonetic(raw),
-    toLatinPhonetic(swapLayout(raw, EN_TO_RU)),
-    toLatinPhonetic(swapLayout(raw, RU_TO_EN)),
-  ]
-  return [...new Set(variants.map((item) => normalizeText(item)).filter(Boolean))]
-}
-
-const selectedCounterparty = computed(
-  () => counterparties.value.find((item) => item.id === selectedCounterpartyId.value) || null,
-)
-
-const indexedCounterparties = computed(() =>
-  counterparties.value.map((item) => {
-    const base = `${item.name || ''} ${item.description || ''} ${item.contact || ''}`
-    const lower = base.toLowerCase()
-    return {
-      item,
-      searchBlob: normalizeText(base),
-      searchBlobRu: normalizeText(swapLayout(lower, EN_TO_RU)),
-      searchBlobEn: normalizeText(swapLayout(lower, RU_TO_EN)),
-      searchBlobLatin: normalizeText(toLatinPhonetic(base)),
-      nameNorm: normalizeText(item.name || ''),
-      nameLatin: normalizeText(toLatinPhonetic(item.name || '')),
-    }
-  }),
-)
-
-const matchedCounterparties = computed(() => {
-  const forms = makeSearchForms(counterpartyQuery.value)
-  if (!forms.length) return []
-
-  const ranked = []
-  for (const entry of indexedCounterparties.value) {
-    let score = 0
-    let matched = false
-    for (const form of forms) {
-      const tokens = form.split(/\s+/).filter(Boolean)
-      const fits = tokens.every(
-        (token) =>
-          entry.searchBlob.includes(token) ||
-          entry.searchBlobRu.includes(token) ||
-          entry.searchBlobEn.includes(token) ||
-          entry.searchBlobLatin.includes(token),
-      )
-      if (!fits) continue
-      matched = true
-      score += 1
-      if (entry.nameNorm.startsWith(form) || entry.nameLatin.startsWith(form)) score += 6
-      else if (entry.nameNorm.includes(form) || entry.nameLatin.includes(form)) score += 3
-    }
-    if (matched) ranked.push({ score, name: entry.item.name || '', item: entry.item })
-  }
-
-  ranked.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name, 'ru'))
-  return ranked.map((entry) => entry.item)
-})
-
-const visibleCounterparties = computed(() =>
-  matchedCounterparties.value.slice(0, MAX_VISIBLE_COUNTERPARTIES),
-)
-
-const hasMoreCounterparties = computed(
-  () => matchedCounterparties.value.length > visibleCounterparties.value.length,
-)
+const selectedCounterparty = ref(getSavedCounterparty())
 
 const canSubmit = computed(
-  () => cart.count > 0 && selectedCounterparty.value && !isSubmitting.value,
+  () => cart.count > 0 && selectedCounterparty.value?.id && !isSubmitting.value,
 )
 
 async function submit() {
@@ -259,40 +107,6 @@ function backToShop() {
 function removeLine(id) {
   cart.setQty(id, 0)
 }
-
-function onCounterpartyQueryInput() {
-  selectedCounterpartyId.value = ''
-  counterpartyResultsOpen.value = Boolean(counterpartyQuery.value.trim())
-}
-
-function selectCounterparty(id) {
-  selectedCounterpartyId.value = id
-  const selected = counterparties.value.find((item) => item.id === id)
-  if (selected?.name) counterpartyQuery.value = selected.name
-  counterpartyResultsOpen.value = false
-  if (selected) saveCounterparty({ id: selected.id, name: selected.name })
-}
-
-async function loadCounterparties() {
-  isCounterpartiesLoading.value = true
-  counterpartiesError.value = ''
-  counterpartiesWarning.value = ''
-  try {
-    const { rows, warning } = await fetchCounterpartiesFromMoySklad()
-    counterparties.value = rows
-    counterpartiesWarning.value = warning
-    const saved = getSavedCounterparty()
-    if (saved && rows.some((row) => row.id === saved.id)) {
-      selectCounterparty(saved.id)
-    }
-  } catch (error) {
-    counterpartiesError.value = error instanceof Error ? error.message : 'Не удалось загрузить контрагентов.'
-  } finally {
-    isCounterpartiesLoading.value = false
-  }
-}
-
-onMounted(loadCounterparties)
 </script>
 
 <template>
@@ -408,55 +222,11 @@ onMounted(loadCounterparties)
 
         <form class="panel reveal reveal-delay-1" @submit.prevent="submit">
           <h2>Контакты</h2>
-          <div class="counterparty-group">
-            <label class="counterparty-search">
-              <span class="muted">Кто заказывает</span>
-              <input
-                v-model="counterpartyQuery"
-                type="text"
-                placeholder="(начните вводить название группы)"
-                autocomplete="off"
-                @input="onCounterpartyQueryInput"
-              />
-            </label>
-            <p v-if="isCounterpartiesLoading" class="hint muted">Загружаем контрагентов...</p>
-            <p v-else-if="counterpartiesError" class="hint error">{{ counterpartiesError }}</p>
-            <p v-else-if="counterpartiesWarning" class="hint muted">{{ counterpartiesWarning }}</p>
-            <div v-else-if="counterpartyResultsOpen" class="counterparty-list">
-              <p v-if="!counterparties.length" class="hint muted">Список контрагентов пуст.</p>
-              <p v-else-if="!matchedCounterparties.length" class="hint muted">
-                Ничего не найдено. Попробуйте имя, телефон или email без точного совпадения.
-              </p>
-              <label
-                v-for="counterparty in visibleCounterparties"
-                :key="counterparty.id"
-                class="counterparty-option"
-              >
-                <input
-                  type="radio"
-                  name="counterparty"
-                  :value="counterparty.id"
-                  :checked="counterparty.id === selectedCounterpartyId"
-                  @change="selectCounterparty(counterparty.id)"
-                />
-                <span>
-                  <strong>{{ counterparty.name }}</strong>
-                  <small class="muted">{{ counterparty.description || 'Контакт не указан' }}</small>
-                </span>
-              </label>
-              <p v-if="hasMoreCounterparties" class="hint muted">
-                Показаны первые {{ visibleCounterparties.length }} из {{ matchedCounterparties.length }}.
-                Уточните запрос, чтобы быстрее найти нужного.
-              </p>
-            </div>
-            <p v-if="selectedCounterparty?.contact" class="hint muted">
-              Контакт: {{ selectedCounterparty.contact }}
-            </p>
-            <p v-else-if="selectedCounterparty" class="hint muted">
-              У выбранного контрагента не заполнен контакт (телефон/email).
-            </p>
-            <PushNotifyButton v-if="selectedCounterparty" variant="inline" />
-          </div>
+          <CounterpartySelect
+            v-model="selectedCounterparty"
+            label="Кто заказывает"
+            show-push
+          />
           <button class="btn btn-primary btn-block" type="submit" :disabled="!canSubmit">
             {{ isSubmitting ? 'Резервируем…' : 'Отправить заказ' }}
           </button>
