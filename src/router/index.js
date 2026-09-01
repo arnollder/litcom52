@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import ShopView from '../views/ShopView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
+import OrdersView from '../views/OrdersView.vue'
 import AdminView from '../views/AdminView.vue'
 import { adminOrigin, isAdminHost, isStoreHost } from '../utils/hosts'
 
@@ -26,6 +27,12 @@ const storeHostRoutes = [
     name: 'checkout',
     component: CheckoutView,
     meta: { title: 'Оформление — Литком-М52' },
+  },
+  {
+    path: '/orders',
+    name: 'orders',
+    component: OrdersView,
+    meta: { title: 'Мои заказы — Литком-М52' },
   },
   // Local/dev: keep /admin. Production store host redirects away in beforeEach.
   { path: '/admin', name: 'admin', component: AdminView, meta: adminMeta },

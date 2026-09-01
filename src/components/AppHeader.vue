@@ -12,6 +12,7 @@ const open = ref(false)
 const links = [
   { to: '/', label: 'Главная' },
   { to: '/shop', label: 'Каталог' },
+  { to: '/orders', label: 'Мои заказы' },
 ]
 
 const cartLabel = computed(() =>

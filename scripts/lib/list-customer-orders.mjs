@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { moyskladFetch } from './moysklad-env.mjs'
+import { getBaseUrl, moyskladFetch } from './moysklad-env.mjs'
 import {
   isPaidLikeStatus,
   mapMoySkladStateToStatus,
@@ -121,6 +121,77 @@ export async function listCustomerOrdersForAdmin({ limit = DEFAULT_LIMIT } = {})
     count: orders.length,
     newCount: orders.filter((order) => order.status === 'new').length,
   }
+}
+
+/**
+ * Customer-facing order shape (history + optional edit).
+ */
+export async function mapCustomerOrderToCustomer(row, { positions } = {}) {
+  const admin = await mapCustomerOrderToAdmin(row, { positions })
+  return {
+    id: admin.id,
+    createdAt: admin.createdAt,
+    status: admin.status,
+    items: admin.items,
+    total: admin.total,
+    comment: admin.comment,
+    canEdit: admin.status === 'new',
+    moySklad: {
+      name: admin.moySklad?.name || null,
+      stateName: admin.moySklad?.stateName || null,
+    },
+  }
+}
+
+/**
+ * Lists MoySklad customer orders for one counterparty (newest first).
+ */
+export async function listCustomerOrdersForCounterparty(counterpartyId, { limit = 50 } = {}) {
+  const cpId = String(counterpartyId || '').trim()
+  if (!cpId) {
+    const error = new Error('Не указан контрагент')
+    error.status = 400
+    throw error
+  }
+
+  const cap = Math.min(Math.max(Number(limit) || 50, 1), 100)
+  const agentHref = `${getBaseUrl()}/entity/counterparty/${cpId}`
+  const filter = encodeURIComponent(`agent=${agentHref}`)
+  const rows = []
+  let offset = 0
+
+  while (rows.length < cap) {
+    const pageLimit = Math.min(PAGE_SIZE, cap - rows.length)
+    const data = await moyskladFetch(
+      `/entity/customerorder?limit=${pageLimit}&offset=${offset}&order=moment,desc&filter=${filter}&expand=agent,state,positions.assortment`,
+    )
+    const chunk = Array.isArray(data?.rows) ? data.rows : []
+    rows.push(...chunk)
+    if (chunk.length < pageLimit) break
+    offset += chunk.length
+  }
+
+  const orders = []
+  for (const row of rows) {
+    orders.push(await mapCustomerOrderToCustomer(row))
+  }
+
+  return { orders, count: orders.length }
+}
+
+/**
+ * Loads one customer order if it belongs to the counterparty.
+ */
+export async function getCustomerOrderForCounterparty(orderId, counterpartyId) {
+  const id = String(orderId || '').trim()
+  const cpId = String(counterpartyId || '').trim()
+  if (!id || !cpId) return null
+
+  const row = await moyskladFetch(
+    `/entity/customerorder/${id}?expand=agent,state,positions.assortment`,
+  )
+  if (String(row?.agent?.id || '') !== cpId) return null
+  return mapCustomerOrderToCustomer(row)
 }
 
 /**

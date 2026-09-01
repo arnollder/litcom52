@@ -170,6 +170,53 @@ export async function fetchLiveStock() {
   }
 }
 
+export async function fetchCustomerOrders(counterpartyId) {
+  const url = new URL(`${getApiBase()}/api/orders`, window.location.origin)
+  url.searchParams.set('counterpartyId', String(counterpartyId || '').trim())
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: { Accept: 'application/json;charset=utf-8' },
+    cache: 'no-store',
+  })
+
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || `Не удалось загрузить заказы (${response.status})`)
+  }
+
+  return {
+    orders: Array.isArray(data.orders) ? data.orders : [],
+    count: data.count || 0,
+  }
+}
+
+export async function updateCustomerOrder(orderId, { counterpartyId, items }) {
+  const response = await fetch(`${getApiBase()}/api/orders/${encodeURIComponent(orderId)}`, {
+    method: 'PATCH',
+    headers: {
+      Accept: 'application/json;charset=utf-8',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      counterpartyId,
+      items: (items || []).map((item) => ({
+        id: String(item.id),
+        qty: Number(item.qty),
+        price: Number(item.price),
+        name: item.name,
+      })),
+    }),
+  })
+
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || `Не удалось сохранить заказ (${response.status})`)
+  }
+
+  return data.order
+}
+
 export async function fetchAdminOrders() {
   const response = await fetch(`${getApiBase()}/api/admin/orders`, {
     method: 'GET',

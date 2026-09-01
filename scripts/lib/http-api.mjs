@@ -13,8 +13,11 @@ import {
 } from './customer-order-state.mjs'
 import {
   getCustomerOrderForAdmin,
+  getCustomerOrderForCounterparty,
   listCustomerOrdersForAdmin,
+  listCustomerOrdersForCounterparty,
 } from './list-customer-orders.mjs'
+import { updateCustomerOrderItems } from './update-customer-order.mjs'
 import { fetchLiveStockMap } from './fetch-stock.mjs'
 import { getAdminReportMetrics } from './admin-reports.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
@@ -424,6 +427,58 @@ export async function handlePushSubscribe(req, res) {
   }
 }
 
+export async function handleCustomerOrders(req, res, pathname) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'GET, PATCH, OPTIONS')
+    return
+  }
+
+  try {
+    await loadEnvFromFile()
+    const url = new URL(req.url || '/api/orders', 'http://localhost')
+
+    if (pathname === '/api/orders' && req.method === 'GET') {
+      const counterpartyId = String(url.searchParams.get('counterpartyId') || '').trim()
+      const result = await listCustomerOrdersForCounterparty(counterpartyId)
+      sendJson(res, 200, { ok: true, ...result })
+      return
+    }
+
+    const match = pathname.match(/^\/api\/orders\/([^/]+)$/)
+    if (match) {
+      const orderId = match[1]
+      const counterpartyId = String(url.searchParams.get('counterpartyId') || '').trim()
+
+      if (req.method === 'GET') {
+        const order = await getCustomerOrderForCounterparty(orderId, counterpartyId)
+        if (!order) {
+          sendJson(res, 404, { ok: false, error: 'Заказ не найден' })
+          return
+        }
+        sendJson(res, 200, { ok: true, order })
+        return
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJsonBody(req)
+        const cpId = String(body.counterpartyId || counterpartyId || '').trim()
+        const order = await updateCustomerOrderItems({
+          orderId,
+          counterpartyId: cpId,
+          items: body.items,
+        })
+        sendJson(res, 200, { ok: true, order })
+        return
+      }
+    }
+
+    sendJson(res, 405, { error: 'Method not allowed' })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Customer orders failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
 /**
  * Returns true if the request was handled.
  */
@@ -441,6 +496,10 @@ export async function handleApiRequest(req, res) {
 
   if (pathname === '/api/orders/reserve') {
     await handleReserveOrder(req, res)
+    return true
+  }
+  if (pathname === '/api/orders' || pathname.startsWith('/api/orders/')) {
+    await handleCustomerOrders(req, res, pathname)
     return true
   }
   if (pathname === '/api/stock') {

@@ -103,6 +103,17 @@ API:
 - `POST /api/push/subscribe` — `{ counterpartyId, counterpartyName, subscription }`
 - `DELETE /api/push/subscribe` — `{ endpoint }`
 
+## История заказов покупателя
+
+Страница `/orders` — список заказов сохранённого контрагента (`litcom52-counterparty` в localStorage).
+Редактирование позиций доступно только для заказов в статусе **«Новый»**.
+
+API:
+
+- `GET /api/orders?counterpartyId=...` — список заказов контрагента
+- `GET /api/orders/:id?counterpartyId=...` — один заказ
+- `PATCH /api/orders/:id` — `{ counterpartyId, items: [{ id, qty, price, name }] }` (только «Новый»)
+
 ## Синхронизация каталога из МойСклад
 
 1. Скопируйте `.env.example` в `.env` и укажите доступ:

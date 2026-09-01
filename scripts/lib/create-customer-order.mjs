@@ -44,24 +44,12 @@ async function resolveAssortmentType(id) {
 }
 
 /**
- * Creates a MoySklad customer order and reserves each line.
- * @param {{ counterpartyId: string, counterpartyName?: string, items: Array<{ id: string, qty: number, price?: number, name?: string }>, comment?: string }} order
+ * Builds MoySklad customerorder position payloads with reserve = quantity.
  */
-export async function createReservedCustomerOrder(order) {
-  const counterpartyId = String(order?.counterpartyId || '').trim()
-  const items = Array.isArray(order?.items) ? order.items : []
-
-  if (!counterpartyId) {
-    throw new Error('Не выбран контрагент')
-  }
-  if (!items.length) {
-    throw new Error('Корзина пуста')
-  }
-
+export async function buildReservedPositions(items) {
   const baseUrl = getBaseUrl()
-  const organizationId = await resolveOrganizationId(baseUrl)
-
   const positions = []
+
   for (const item of items) {
     const id = String(item.id || '').trim()
     const qty = Number(item.qty)
@@ -80,6 +68,29 @@ export async function createReservedCustomerOrder(order) {
       },
     })
   }
+
+  return positions
+}
+
+/**
+ * Creates a MoySklad customer order and reserves each line.
+ * @param {{ counterpartyId: string, counterpartyName?: string, items: Array<{ id: string, qty: number, price?: number, name?: string }>, comment?: string }} order
+ */
+export async function createReservedCustomerOrder(order) {
+  const counterpartyId = String(order?.counterpartyId || '').trim()
+  const items = Array.isArray(order?.items) ? order.items : []
+
+  if (!counterpartyId) {
+    throw new Error('Не выбран контрагент')
+  }
+  if (!items.length) {
+    throw new Error('Корзина пуста')
+  }
+
+  const baseUrl = getBaseUrl()
+  const organizationId = await resolveOrganizationId(baseUrl)
+
+  const positions = await buildReservedPositions(items)
 
   const body = {
     organization: {
