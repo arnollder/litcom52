@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { useCartStore } from '../stores/cart'
 import { useOrderEditSession } from '../utils/order-edit-session.js'
 import ThemeToggle from './ThemeToggle.vue'
+import PushToggle from './PushToggle.vue'
 import InstallAppButton from './InstallAppButton.vue'
 
 const route = useRoute()
@@ -59,6 +60,7 @@ function close() {
 
       <div class="header__actions">
         <InstallAppButton variant="header" />
+        <PushToggle />
         <ThemeToggle />
 
         <button

@@ -1,7 +1,6 @@
 <script setup>
 import { watch } from 'vue'
 import { useCounterpartySearch } from '../composables/useCounterpartySearch.js'
-import PushNotifyButton from './PushNotifyButton.vue'
 
 const props = defineProps({
   label: { type: String, default: 'Контрагент' },
@@ -9,8 +8,8 @@ const props = defineProps({
     type: String,
     default: '(начните вводить название группы)',
   },
-  showPush: { type: Boolean, default: false },
   inputName: { type: String, default: 'counterparty' },
+  persist: { type: Boolean, default: true },
 })
 
 const model = defineModel({ type: Object, default: null })
@@ -29,6 +28,7 @@ const {
   selectById,
   onQueryInput,
 } = useCounterpartySearch({
+  persist: props.persist,
   onSelect(value) {
     model.value = value
   },
@@ -94,7 +94,6 @@ function onSelect(id) {
     <p v-else-if="selected" class="hint muted">
       У выбранного контрагента не заполнен контакт (телефон/email).
     </p>
-    <PushNotifyButton v-if="showPush && selected" variant="inline" />
   </div>
 </template>
 

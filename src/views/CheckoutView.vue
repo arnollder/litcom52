@@ -105,8 +105,6 @@ function removeLine(id) {
 
         <PaymentDetails :amount="submittedTotal" />
 
-        <PushNotifyButton variant="panel" />
-
         <div class="actions">
           <RouterLink class="btn btn-primary" to="/shop">Вернуться в каталог</RouterLink>
           <RouterLink class="btn btn-ghost" to="/">На главную</RouterLink>
@@ -174,7 +172,6 @@ function removeLine(id) {
           <CounterpartySelect
             v-model="selectedCounterparty"
             label="Кто заказывает"
-            show-push
           />
           <button class="btn btn-primary btn-block" type="submit" :disabled="!canSubmit">
             {{ isSubmitting ? 'Резервируем…' : 'Отправить заказ' }}

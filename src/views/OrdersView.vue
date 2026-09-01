@@ -270,7 +270,12 @@ async function saveEdit(order) {
     </header>
 
     <section class="panel reveal orders__picker">
-      <CounterpartySelect v-model="counterparty" input-name="orders-counterparty" label="Контрагент" />
+      <CounterpartySelect
+        v-model="counterparty"
+        :persist="false"
+        input-name="orders-counterparty"
+        label="Контрагент"
+      />
     </section>
 
     <p v-if="error" class="error">{{ error }}</p>

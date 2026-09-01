@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { getSavedCounterparty } from '../utils/counterparty.js'
+import { useSavedCounterparty } from '../utils/counterparty.js'
 import {
   fetchPushPublicKey,
   subscribePush,
@@ -26,7 +26,7 @@ function subscriptionPayload(subscription) {
 }
 
 export function usePushNotifications() {
-  const savedCounterparty = computed(() => getSavedCounterparty())
+  const savedCounterparty = useSavedCounterparty()
   const isSupported = computed(
     () =>
       typeof window !== 'undefined' &&
@@ -47,7 +47,7 @@ export function usePushNotifications() {
 
   async function enableNotifications() {
     error.value = ''
-    const counterparty = getSavedCounterparty()
+    const counterparty = savedCounterparty.value
     if (!counterparty) {
       error.value = 'Сначала выберите и сохраните контрагента при оформлении заказа.'
       return false

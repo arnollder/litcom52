@@ -201,7 +201,7 @@ export function useCounterpartySearch(options = {}) {
       const preferred =
         initial ||
         (selectedId.value ? { id: selectedId.value } : null) ||
-        getSavedCounterparty()
+        (persist ? getSavedCounterparty() : null)
       if (preferred?.id && rows.some((row) => row.id === preferred.id)) {
         selectById(preferred.id)
       }
@@ -213,7 +213,7 @@ export function useCounterpartySearch(options = {}) {
   }
 
   onMounted(() => {
-    const saved = getSavedCounterparty()
+    const saved = persist ? getSavedCounterparty() : null
     if (saved?.name) query.value = saved.name
     if (saved?.id) selectedId.value = saved.id
     load(saved)
