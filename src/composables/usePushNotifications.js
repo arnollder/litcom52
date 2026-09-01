@@ -61,6 +61,24 @@ export function usePushNotifications() {
       'Notification' in window,
   )
   const isSubscribed = computed(() => Boolean(subscribedEndpoint.value))
+  const canEnable = computed(
+    () =>
+      isSupported.value &&
+      Boolean(savedCounterparty.value) &&
+      permission.value !== 'denied' &&
+      !isSubscribed.value &&
+      !isLoading.value,
+  )
+  const canDisable = computed(
+    () => isSupported.value && isSubscribed.value && !isLoading.value,
+  )
+  const canRetryDenied = computed(
+    () =>
+      isSupported.value &&
+      Boolean(savedCounterparty.value) &&
+      permission.value === 'denied' &&
+      !isLoading.value,
+  )
 
   async function refreshSubscriptionState() {
     if (!isSupported.value) return
@@ -89,7 +107,8 @@ export function usePushNotifications() {
 
     if (Notification.permission === 'denied') {
       permission.value = 'denied'
-      error.value = 'Уведомления запрещены в настройках браузера для этого сайта.'
+      error.value =
+        'Уведомления запрещены в настройках сайта. Разрешите их для этого адреса и обновите страницу.'
       return false
     }
 
@@ -101,7 +120,7 @@ export function usePushNotifications() {
     if (nextPermission !== 'granted') {
       error.value =
         nextPermission === 'denied'
-          ? 'Браузер запретил уведомления. Разрешите их в настройках сайта.'
+          ? 'Браузер запретил уведомления. Разрешите их в настройках сайта и обновите страницу.'
           : 'Разрешение на уведомления не выдано.'
       return false
     }
@@ -172,6 +191,9 @@ export function usePushNotifications() {
     isLoading,
     error,
     permission,
+    canEnable,
+    canDisable,
+    canRetryDenied,
     refreshSubscriptionState,
     enableNotifications,
     disableNotifications,
