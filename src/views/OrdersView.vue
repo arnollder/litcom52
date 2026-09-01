@@ -120,11 +120,18 @@ function addFromCatalog(product) {
   catalogQuery.value = ''
 }
 
+function isEditingOrder(order) {
+  return editingId.value === order.id && order.canEdit
+}
+
 function resumeEditIfNeeded() {
   const session = readOrderEditSession()
   if (!session || editingId.value || counterparty.value?.id !== session.counterpartyId) return
   const order = orders.value.find((row) => row.id === session.orderId)
-  if (!order?.canEdit) return
+  if (!order?.canEdit) {
+    clearOrderEditSession()
+    return
+  }
   editingId.value = order.id
   editBaseItemIds.value = new Set(order.items.map((item) => String(item.id)))
   draftItems.value = session.items.map((item) => ({ ...item }))
@@ -176,6 +183,10 @@ async function loadOrders() {
   try {
     const result = await fetchCustomerOrders(counterparty.value.id)
     orders.value = result.orders
+    if (editingId.value) {
+      const current = orders.value.find((row) => row.id === editingId.value)
+      if (!current?.canEdit) cancelEdit()
+    }
     resumeEditIfNeeded()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Не удалось загрузить заказы'
@@ -278,7 +289,7 @@ async function saveEdit(order) {
         v-for="order in orders"
         :key="order.id"
         class="order-card reveal"
-        :class="{ 'order-card--editing': editingId === order.id }"
+        :class="{ 'order-card--editing': isEditingOrder(order) }"
       >
         <header class="order-card__head">
           <div>
@@ -292,78 +303,82 @@ async function saveEdit(order) {
           </span>
         </header>
 
-        <ul v-if="editingId !== order.id" class="order-card__items">
-          <li v-for="item in order.items" :key="item.id">
-            <span>{{ item.name }}</span>
-            <span class="order-card__qty">{{ item.qty }} × {{ formatMoney(item.price) }}</span>
-          </li>
-        </ul>
+        <template v-if="isEditingOrder(order)">
+          <div class="order-edit">
+            <ul class="order-edit__items">
+              <li v-for="item in draftItems" :key="item.id" class="order-edit__row">
+                <span class="order-edit__name">{{ item.name }}</span>
+                <QtyControl
+                  :model-value="item.qty"
+                  :max="maxQtyForItem(item)"
+                  @update:model-value="item.qty = $event"
+                />
+                <span class="order-edit__sum">{{ formatMoney(lineTotal(item)) }}</span>
+              </li>
+            </ul>
 
-        <PaymentDetails
-          v-if="order.status === 'new' && editingId !== order.id"
-          compact
-          :amount="order.total"
-        />
+            <div class="order-edit__add">
+              <p class="order-edit__add-title">Добавить из каталога</p>
+              <label class="order-edit__search">
+                <span class="muted">Поиск</span>
+                <input
+                  v-model="catalogQuery"
+                  type="search"
+                  placeholder="Название позиции…"
+                  autocomplete="off"
+                />
+              </label>
+              <div v-if="catalogMatches.length" class="order-edit__matches">
+                <div v-for="product in catalogMatches" :key="product.id" class="order-edit__match">
+                  <span>
+                    <strong>{{ product.name }}</strong>
+                    <small class="muted">{{ formatMoney(product.price) }} · в наличии {{ product.stock }}</small>
+                  </span>
+                  <button type="button" class="btn btn-ghost order-edit__pick" @click="addFromCatalog(product)">
+                    Добавить
+                  </button>
+                </div>
+              </div>
+              <p v-else-if="catalogQuery.trim().length >= 2" class="hint muted">Ничего не найдено.</p>
+              <button type="button" class="btn btn-ghost order-edit__catalog" @click="openCatalog(order)">
+                Открыть полный каталог
+              </button>
+            </div>
 
-        <div v-else class="order-edit">
-          <ul class="order-edit__items">
-            <li v-for="item in draftItems" :key="item.id" class="order-edit__row">
-              <span class="order-edit__name">{{ item.name }}</span>
-              <QtyControl
-                :model-value="item.qty"
-                :max="maxQtyForItem(item)"
-                @update:model-value="item.qty = $event"
-              />
-              <span class="order-edit__sum">{{ formatMoney(lineTotal(item)) }}</span>
+            <p class="order-edit__total">Итого: <strong>{{ formatMoney(draftTotal) }}</strong></p>
+            <p v-if="saveError" class="error">{{ saveError }}</p>
+            <div class="order-edit__actions">
+              <button
+                type="button"
+                class="btn btn-primary"
+                :disabled="isSaving"
+                @click="saveEdit(order)"
+              >
+                {{ isSaving ? 'Сохранение…' : 'Сохранить' }}
+              </button>
+              <button type="button" class="btn btn-ghost" :disabled="isSaving" @click="cancelEdit">
+                Отмена
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <template v-else>
+          <ul class="order-card__items">
+            <li v-for="item in order.items" :key="item.id">
+              <span>{{ item.name }}</span>
+              <span class="order-card__qty">{{ item.qty }} × {{ formatMoney(item.price) }}</span>
             </li>
           </ul>
 
-          <div class="order-edit__add">
-            <p class="order-edit__add-title">Добавить из каталога</p>
-            <label class="order-edit__search">
-              <span class="muted">Поиск</span>
-              <input
-                v-model="catalogQuery"
-                type="search"
-                placeholder="Название позиции…"
-                autocomplete="off"
-              />
-            </label>
-            <div v-if="catalogMatches.length" class="order-edit__matches">
-              <div v-for="product in catalogMatches" :key="product.id" class="order-edit__match">
-                <span>
-                  <strong>{{ product.name }}</strong>
-                  <small class="muted">{{ formatMoney(product.price) }} · в наличии {{ product.stock }}</small>
-                </span>
-                <button type="button" class="btn btn-ghost order-edit__pick" @click="addFromCatalog(product)">
-                  Добавить
-                </button>
-              </div>
-            </div>
-            <p v-else-if="catalogQuery.trim().length >= 2" class="hint muted">Ничего не найдено.</p>
-            <button type="button" class="btn btn-ghost order-edit__catalog" @click="openCatalog(order)">
-              Открыть полный каталог
-            </button>
-          </div>
+          <PaymentDetails
+            v-if="order.status === 'new'"
+            compact
+            :amount="order.total"
+          />
+        </template>
 
-          <p class="order-edit__total">Итого: <strong>{{ formatMoney(draftTotal) }}</strong></p>
-          <p v-if="saveError" class="error">{{ saveError }}</p>
-          <div class="order-edit__actions">
-            <button
-              type="button"
-              class="btn btn-primary"
-              :disabled="isSaving"
-              @click="saveEdit(order)"
-            >
-              {{ isSaving ? 'Сохранение…' : 'Сохранить' }}
-            </button>
-            <button type="button" class="btn btn-ghost" :disabled="isSaving" @click="cancelEdit">
-              Отмена
-            </button>
-          </div>
-        </div>
-
-        <footer v-if="editingId !== order.id" class="order-card__foot">
+        <footer v-if="!isEditingOrder(order)" class="order-card__foot">
           <strong>{{ formatMoney(order.total) }}</strong>
           <button
             v-if="order.canEdit"
