@@ -1,13 +1,23 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import QtyControl from '../components/QtyControl.vue'
+import { updateCustomerOrder } from '../services/moysklad'
+import {
+  clearOrderEditSession,
+  mergeOrderItems,
+  readOrderEditSession,
+} from '../utils/order-edit-session.js'
 
 const POLL_MS = 60_000
 
 const cart = useCartStore()
+const router = useRouter()
 const query = ref('')
+const editSession = ref(readOrderEditSession())
+const isAppending = ref(false)
+const appendError = ref('')
 const openCategories = ref(
   Object.fromEntries(cart.catalog.categories.map((c) => [c.category, false])),
 )
@@ -26,6 +36,12 @@ const filtered = computed(() => {
 })
 
 const stockHint = computed(() => {
+  if (editSession.value) {
+    const label = editSession.value.orderName
+      ? `№${editSession.value.orderName}`
+      : editSession.value.orderId.slice(0, 8)
+    return `Дополняем заказ ${label} — добавьте позиции в корзину и нажмите «Добавить к заказу».`
+  }
   if (cart.stockStatus.loading) return 'Обновляем остатки из МойСклад…'
   if (cart.stockStatus.error) return `Остатки из файла (live недоступен): ${cart.stockStatus.error}`
   if (cart.stockStatus.live && cart.stockStatus.updatedAt) {
@@ -52,6 +68,47 @@ async function refreshStockQuiet() {
   }
 }
 
+function cancelAppendMode() {
+  clearOrderEditSession()
+  editSession.value = null
+  router.push('/orders')
+}
+
+async function appendCartToOrder() {
+  if (!editSession.value || isAppending.value) return
+  if (!cart.count) {
+    appendError.value = 'Сначала добавьте позиции в корзину'
+    return
+  }
+
+  isAppending.value = true
+  appendError.value = ''
+  try {
+    const items = mergeOrderItems(
+      editSession.value.items,
+      cart.lines.map((line) => ({
+        id: line.id,
+        name: line.name,
+        price: line.price,
+        qty: line.qty,
+      })),
+    )
+    await updateCustomerOrder(editSession.value.orderId, {
+      counterpartyId: editSession.value.counterpartyId,
+      items,
+    })
+    clearOrderEditSession()
+    editSession.value = null
+    cart.clear()
+    router.push('/orders')
+  } catch (error) {
+    appendError.value =
+      error instanceof Error ? error.message : 'Не удалось обновить заказ'
+  } finally {
+    isAppending.value = false
+  }
+}
+
 let pollTimer = null
 
 onMounted(() => {
@@ -65,7 +122,29 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="container shop">
+  <div class="container shop" :class="{ 'shop--append': editSession }">
+    <div v-if="editSession" class="append-bar reveal">
+      <p class="append-bar__text">
+        Дополнение заказа
+        <strong>{{ editSession.orderName ? `№${editSession.orderName}` : '' }}</strong>
+        — в корзине {{ cart.count }} поз.
+      </p>
+      <div class="append-bar__actions">
+        <button
+          type="button"
+          class="btn btn-primary"
+          :disabled="isAppending || !cart.count"
+          @click="appendCartToOrder"
+        >
+          {{ isAppending ? 'Сохранение…' : 'Добавить к заказу' }}
+        </button>
+        <button type="button" class="btn btn-ghost" :disabled="isAppending" @click="cancelAppendMode">
+          К заказам
+        </button>
+      </div>
+      <p v-if="appendError" class="append-bar__error">{{ appendError }}</p>
+    </div>
+
     <header class="shop__head reveal">
       <div>
         <p class="eyebrow">Витрина</p>
@@ -372,5 +451,40 @@ tr.is-active {
   td:first-child::before {
     display: none;
   }
+}
+
+.shop--append {
+  padding-bottom: 5rem;
+}
+
+.append-bar {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 40;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 0.55rem;
+}
+
+.append-bar__text {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.append-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.append-bar__error {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: 0.85rem;
 }
 </style>
