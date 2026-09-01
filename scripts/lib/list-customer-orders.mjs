@@ -10,6 +10,7 @@ import { moySkladMomentToIso } from './moysklad-time.mjs'
 
 const PAGE_SIZE = 100
 const DEFAULT_LIMIT = 100
+const CUSTOMER_ORDER_LIMIT = 12
 
 function uiHref(orderId) {
   return `https://online.moysklad.ru/app/#customerorder/edit?id=${orderId}`
@@ -146,7 +147,7 @@ export async function mapCustomerOrderToCustomer(row, { positions } = {}) {
 /**
  * Lists MoySklad customer orders for one counterparty (newest first).
  */
-export async function listCustomerOrdersForCounterparty(counterpartyId, { limit = 50 } = {}) {
+export async function listCustomerOrdersForCounterparty(counterpartyId, { limit = CUSTOMER_ORDER_LIMIT } = {}) {
   const cpId = String(counterpartyId || '').trim()
   if (!cpId) {
     const error = new Error('Не указан контрагент')
@@ -154,7 +155,7 @@ export async function listCustomerOrdersForCounterparty(counterpartyId, { limit 
     throw error
   }
 
-  const cap = Math.min(Math.max(Number(limit) || 50, 1), 100)
+  const cap = Math.min(Math.max(Number(limit) || CUSTOMER_ORDER_LIMIT, 1), 100)
   const agentHref = `${getBaseUrl()}/entity/counterparty/${cpId}`
   const filter = encodeURIComponent(`agent=${agentHref}`)
   const rows = []
