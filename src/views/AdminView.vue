@@ -11,6 +11,7 @@ import {
 import AdminOrders from '../components/AdminOrders.vue'
 import AdminReports from '../components/AdminReports.vue'
 import InstallAppButton from '../components/InstallAppButton.vue'
+import PushToggle from '../components/PushToggle.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { syncAppBadge, useAdminPush } from '../composables/useAdminPush.js'
 
@@ -35,16 +36,6 @@ let audioCtx = null
 let ordersInFlight = false
 
 const {
-  supported: pushSupported,
-  enabled: pushEnabled,
-  permission: pushPermission,
-  busy: pushBusy,
-  error: pushError,
-  canEnable: canEnablePush,
-  canDisable: canDisablePush,
-  canRetryDenied: canRetryDeniedPush,
-  enable: enablePush,
-  disable: disablePush,
   syncSubscription: syncPushSubscription,
 } = useAdminPush()
 
@@ -257,18 +248,9 @@ onUnmounted(stopPolling)
               Новых: {{ newCount }}
             </span>
             <InstallAppButton variant="header" label="Установить админку" />
-            <button
-              v-if="pushSupported"
-              type="button"
-              class="btn btn-ghost push-btn"
-              :disabled="pushBusy || (!canEnablePush && !canDisablePush && !canRetryDeniedPush)"
-              @click="pushEnabled ? disablePush() : enablePush()"
-            >
-              {{ pushEnabled ? 'Push: вкл' : pushPermission === 'denied' ? 'Push: запрещён' : 'Push: выкл' }}
-            </button>
+            <PushToggle audience="admin" />
             <ThemeToggle />
           </div>
-          <p v-if="pushError" class="push-error">{{ pushError }}</p>
           <span class="muted sync">
             {{ lastSyncedAt ? `Обновлено ${formatDate(lastSyncedAt)}` : 'Ожидание…' }}
           </span>
@@ -427,17 +409,6 @@ onUnmounted(stopPolling)
 .error {
   color: var(--danger-text);
   margin: 0 0 1rem;
-}
-
-.push-error {
-  color: var(--danger-text);
-  margin: 0;
-  font-size: 0.82rem;
-}
-
-.push-btn {
-  font-size: 0.82rem;
-  padding: 0.35rem 0.65rem;
 }
 
 @keyframes pulse {
