@@ -2,14 +2,24 @@
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { computed } from 'vue'
 import { useCartStore } from './stores/cart'
+import { useAppendToOrder } from './composables/useAppendToOrder.js'
+import { useOrderEditSession } from './utils/order-edit-session.js'
 import AppHeader from './components/AppHeader.vue'
 import AppFooter from './components/AppFooter.vue'
 import CartToast from './components/CartToast.vue'
 
 const cart = useCartStore()
 const route = useRoute()
+const { isAppendMode, session } = useOrderEditSession()
+const { isAppending, appendError, appendCartToOrder } = useAppendToOrder()
 const hideChrome = computed(() => Boolean(route.meta.hideChrome))
 const showFooterCart = computed(() => route.name === 'shop' && cart.count > 0)
+
+const footerLabel = computed(() => {
+  if (!isAppendMode.value) return 'В заказе'
+  const name = session.value?.orderName
+  return name ? `Дополнение №${name}` : 'Дополнение заказа'
+})
 </script>
 
 <template>
@@ -23,14 +33,24 @@ const showFooterCart = computed(() => route.name === 'shop' && cart.count > 0)
   <div v-if="showFooterCart" class="sticky-cart">
     <div class="sticky-cart__inner container">
       <div>
-        <div class="sticky-cart__label">В заказе</div>
+        <div class="sticky-cart__label">{{ footerLabel }}</div>
         <div class="sticky-cart__value">
           {{ cart.count }} поз. · {{ cart.total.toLocaleString('ru-RU') }} ₽
         </div>
+        <p v-if="appendError" class="sticky-cart__error">{{ appendError }}</p>
       </div>
       <div class="sticky-cart__actions">
         <button class="btn btn-ghost" type="button" @click="cart.clear()">Очистить</button>
-        <RouterLink class="btn btn-primary" to="/checkout">Оформить</RouterLink>
+        <button
+          v-if="isAppendMode"
+          type="button"
+          class="btn btn-primary"
+          :disabled="isAppending"
+          @click="appendCartToOrder"
+        >
+          {{ isAppending ? 'Сохранение…' : 'Добавить к заказу' }}
+        </button>
+        <RouterLink v-else class="btn btn-primary" to="/checkout">Оформить</RouterLink>
       </div>
     </div>
   </div>
@@ -76,6 +96,12 @@ const showFooterCart = computed(() => route.name === 'shop' && cart.count > 0)
   display: flex;
   gap: 0.6rem;
   flex-wrap: wrap;
+}
+
+.sticky-cart__error {
+  margin: 0.35rem 0 0;
+  color: var(--danger-text);
+  font-size: 0.82rem;
 }
 
 @media (max-width: 640px) {

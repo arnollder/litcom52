@@ -139,6 +139,7 @@ function resumeEditIfNeeded() {
 
 function openCatalog(order) {
   if (!counterparty.value?.id) return
+  cart.clear()
   saveOrderEditSession({
     orderId: order.id,
     orderName: order.moySklad?.name || '',

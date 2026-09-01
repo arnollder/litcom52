@@ -2,11 +2,13 @@
 import { RouterLink, useRoute } from 'vue-router'
 import { computed, ref } from 'vue'
 import { useCartStore } from '../stores/cart'
+import { useOrderEditSession } from '../utils/order-edit-session.js'
 import ThemeToggle from './ThemeToggle.vue'
 import InstallAppButton from './InstallAppButton.vue'
 
 const route = useRoute()
 const cart = useCartStore()
+const { isAppendMode } = useOrderEditSession()
 const open = ref(false)
 
 const links = [
@@ -15,9 +17,13 @@ const links = [
   { to: '/orders', label: 'Мои заказы' },
 ]
 
-const cartLabel = computed(() =>
-  cart.count ? `Корзина · ${cart.count}` : 'Корзина',
-)
+const cartLink = computed(() => (isAppendMode.value ? '/shop' : '/checkout'))
+
+const cartLabel = computed(() => {
+  if (isAppendMode.value && cart.count) return `К заказу · ${cart.count}`
+  if (isAppendMode.value) return 'Дополнение заказа'
+  return cart.count ? `Корзина · ${cart.count}` : 'Корзина'
+})
 
 function close() {
   open.value = false
@@ -46,7 +52,7 @@ function close() {
         >
           {{ link.label }}
         </RouterLink>
-        <RouterLink class="btn btn-primary nav__cart" to="/checkout" @click="close">
+        <RouterLink class="btn btn-primary nav__cart" :to="cartLink" @click="close">
           {{ cartLabel }}
         </RouterLink>
       </nav>

@@ -1,6 +1,23 @@
+import { computed, ref } from 'vue'
+
 const SESSION_KEY = 'litcom52-edit-order'
 
 /** @typedef {{ id: string, name: string, price: number, qty: number }} OrderLine */
+
+const sessionState = ref(null)
+
+/** Sync in-memory session from sessionStorage (same tab). */
+export function syncOrderEditSession() {
+  sessionState.value = readOrderEditSession()
+  return sessionState.value
+}
+
+export function useOrderEditSession() {
+  return {
+    session: computed(() => sessionState.value),
+    isAppendMode: computed(() => Boolean(sessionState.value)),
+  }
+}
 
 /**
  * @param {{ orderId: string, orderName?: string, counterpartyId: string, items: OrderLine[] }} payload
@@ -17,6 +34,7 @@ export function saveOrderEditSession(payload) {
         items: Array.isArray(payload.items) ? payload.items : [],
       }),
     )
+    syncOrderEditSession()
   } catch {
     // ignore quota / private mode
   }
@@ -47,9 +65,14 @@ export function clearOrderEditSession() {
   if (typeof window === 'undefined') return
   try {
     sessionStorage.removeItem(SESSION_KEY)
+    sessionState.value = null
   } catch {
     // ignore
   }
+}
+
+if (typeof window !== 'undefined') {
+  syncOrderEditSession()
 }
 
 /**

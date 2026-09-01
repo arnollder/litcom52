@@ -5,6 +5,7 @@ import CheckoutView from '../views/CheckoutView.vue'
 import OrdersView from '../views/OrdersView.vue'
 import AdminView from '../views/AdminView.vue'
 import { adminOrigin, isAdminHost, isStoreHost } from '../utils/hosts'
+import { readOrderEditSession } from '../utils/order-edit-session.js'
 
 const adminMeta = { title: 'Админка М52', hideChrome: true }
 
@@ -52,6 +53,10 @@ router.beforeEach((to) => {
   if (isStoreHost() && (to.name === 'admin' || to.path === '/admin' || to.path.startsWith('/admin/'))) {
     window.location.replace(`${adminOrigin()}/`)
     return false
+  }
+
+  if (to.name === 'checkout' && readOrderEditSession()) {
+    return { name: 'shop' }
   }
 
   return true
