@@ -71,6 +71,7 @@ async function pollOnce({ bootstrap = false } = {}) {
         newCount: freshNew.length,
         orderName: latest.moySklad?.name || '',
         orderId: latest.id,
+        counterpartyName: latest.customer?.counterparty?.name || '',
       })
     }
 
@@ -84,6 +85,7 @@ async function pollOnce({ bootstrap = false } = {}) {
       await notifyOrderPaid({
         orderName: order.moySklad?.name || '',
         orderId: order.id,
+        counterpartyName: order.customer?.counterparty?.name || '',
       })
     }
 
@@ -120,6 +122,11 @@ export async function notifyPushForNewOrder(order = {}) {
     newCount: 1,
     orderName: order?.name || order?.moySklad?.name || '',
     orderId: order?.id || order?.moySklad?.id || '',
+    counterpartyName:
+      order?.counterpartyName ||
+      order?.customer?.counterparty?.name ||
+      order?.moySklad?.counterpartyName ||
+      '',
   })
 
   const state = await readState()
@@ -135,7 +142,7 @@ export async function notifyPushForPaidOrder(order = {}) {
   await notifyOrderPaid({
     orderName: order?.moySklad?.name || order?.name || '',
     orderId: order?.id || order?.moySklad?.id || '',
-    paymentName: order?.moySklad?.paymentName || order?.paymentName || '',
+    counterpartyName: order?.customer?.counterparty?.name || order?.counterpartyName || '',
   })
 
   const state = await readState()

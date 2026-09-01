@@ -67,15 +67,24 @@ async function sendPushToSubscriptions(subscriptions, payload, { onDeadEndpoint 
   return { sent, failed, skipped: false }
 }
 
-export async function notifyNewOrders({ newCount, orderName = '', orderId = '' } = {}) {
+function groupLabel(name) {
+  const value = String(name || '').trim()
+  return value || 'неизвестной группы'
+}
+
+export async function notifyNewOrders({
+  newCount,
+  orderName = '',
+  orderId = '',
+  counterpartyName = '',
+} = {}) {
   const count = Math.max(Number(newCount) || 0, 1)
+  const group = groupLabel(counterpartyName)
   const title = count === 1 ? 'Новый заказ' : `Новых заказов: ${count}`
   const body =
-    orderName && count === 1
-      ? `Заказ №${orderName} ждёт обработки`
-      : count === 1
-        ? 'Поступил новый заказ в админку'
-        : `${count} заказов со статусом «Новый»`
+    count === 1
+      ? `Группа ${group} оформила заказ. Ждём подтверждения оплаты.`
+      : `${count} новых заказов ждут подтверждения оплаты.`
 
   const subscriptions = await listAdminPushSubscriptions()
   return sendPushToSubscriptions(subscriptions, {
@@ -87,14 +96,14 @@ export async function notifyNewOrders({ newCount, orderName = '', orderId = '' }
   })
 }
 
-export async function notifyOrderPaid({ orderName = '', orderId = '', paymentName = '' } = {}) {
-  const title = 'Заказ оплачен'
-  const body =
-    orderName && paymentName
-      ? `Заказ №${orderName} — платёж ${paymentName}`
-      : orderName
-        ? `Заказ №${orderName} отмечен как «Оплачен»`
-        : 'Заказ переведён в статус «Оплачен»'
+export async function notifyOrderPaid({
+  orderName = '',
+  orderId = '',
+  counterpartyName = '',
+} = {}) {
+  const group = groupLabel(counterpartyName)
+  const title = 'Оплачено'
+  const body = `Платёж от группы ${group} подтверждён. Ждём отгрузку.`
 
   const subscriptions = await listAdminPushSubscriptions()
   return sendPushToSubscriptions(subscriptions, {

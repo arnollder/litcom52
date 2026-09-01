@@ -131,6 +131,11 @@ export async function handleReserveOrder(req, res) {
       id: result?.id,
       name: result?.name,
       moySklad: result,
+      counterpartyName:
+        body.counterpartyName ||
+        body.customer?.counterparty?.name ||
+        body.customer?.name ||
+        '',
     }).catch((pushError) => {
       console.error('[push] reserve notify failed', pushError)
     })
