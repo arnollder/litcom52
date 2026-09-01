@@ -347,7 +347,6 @@ async function saveEdit(order) {
           </div>
 
           <p class="order-edit__total">Итого: <strong>{{ formatMoney(draftTotal) }}</strong></p>
-          <PaymentDetails v-if="order.status === 'new'" compact :amount="draftTotal" />
           <p v-if="saveError" class="error">{{ saveError }}</p>
           <div class="order-edit__actions">
             <button
