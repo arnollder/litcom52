@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import CounterpartySelect from '../components/CounterpartySelect.vue'
+import PaymentDetails from '../components/PaymentDetails.vue'
 import QtyControl from '../components/QtyControl.vue'
 import { useCartStore } from '../stores/cart'
 import { fetchCustomerOrders, fetchLiveStock, updateCustomerOrder } from '../services/moysklad'
@@ -298,6 +299,12 @@ async function saveEdit(order) {
           </li>
         </ul>
 
+        <PaymentDetails
+          v-if="order.status === 'new' && editingId !== order.id"
+          compact
+          :amount="order.total"
+        />
+
         <div v-else class="order-edit">
           <ul class="order-edit__items">
             <li v-for="item in draftItems" :key="item.id" class="order-edit__row">
@@ -340,6 +347,7 @@ async function saveEdit(order) {
           </div>
 
           <p class="order-edit__total">Итого: <strong>{{ formatMoney(draftTotal) }}</strong></p>
+          <PaymentDetails v-if="order.status === 'new'" compact :amount="draftTotal" />
           <p v-if="saveError" class="error">{{ saveError }}</p>
           <div class="order-edit__actions">
             <button

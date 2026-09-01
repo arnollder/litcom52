@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import QtyControl from '../components/QtyControl.vue'
 import CounterpartySelect from '../components/CounterpartySelect.vue'
+import PaymentDetails from '../components/PaymentDetails.vue'
 import { useCartStore } from '../stores/cart'
 import { reserveOrderInMoySklad } from '../services/moysklad'
 import { getSavedCounterparty, saveCounterparty } from '../utils/counterparty.js'
@@ -14,28 +15,6 @@ const isSubmitting = ref(false)
 const submitError = ref('')
 const reservedOrder = ref(null)
 const submittedTotal = ref(0)
-const phoneCopied = ref(false)
-
-const PAYMENT_PHONE = '+79063535039'
-const PAYMENT_PHONE_LABEL = '+7\u00a0906\u00a0353‑50‑39'
-
-async function copyPaymentPhone() {
-  try {
-    await navigator.clipboard.writeText(PAYMENT_PHONE)
-  } catch {
-    const input = document.createElement('input')
-    input.value = PAYMENT_PHONE
-    document.body.appendChild(input)
-    input.select()
-    document.execCommand('copy')
-    input.remove()
-  }
-  phoneCopied.value = true
-  window.clearTimeout(copyPaymentPhone._t)
-  copyPaymentPhone._t = window.setTimeout(() => {
-    phoneCopied.value = false
-  }, 2000)
-}
 
 const selectedCounterparty = ref(getSavedCounterparty())
 
@@ -124,37 +103,7 @@ function removeLine(id) {
           <template v-if="reservedOrder.id"> · id {{ reservedOrder.id }}</template>
         </p>
 
-        <div class="payment">
-          <h2>Реквизиты для оплаты</h2>
-          <dl class="payment__details">
-            <div>
-              <dt>Способ</dt>
-              <dd>СБП · ЮMoney</dd>
-            </div>
-            <div>
-              <dt>Телефон</dt>
-              <dd>
-                <button
-                  class="payment__phone"
-                  type="button"
-                  :title="phoneCopied ? 'Скопировано' : 'Скопировать номер'"
-                  @click="copyPaymentPhone"
-                >
-                  {{ PAYMENT_PHONE_LABEL }}
-                </button>
-                <span v-if="phoneCopied" class="payment__copied">Скопировано</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Получатель</dt>
-              <dd>Евгений&nbsp;Т.</dd>
-            </div>
-            <div v-if="submittedTotal > 0">
-              <dt>Сумма</dt>
-              <dd>{{ submittedTotal.toLocaleString('ru-RU') }}&nbsp;₽</dd>
-            </div>
-          </dl>
-        </div>
+        <PaymentDetails :amount="submittedTotal" />
 
         <PushNotifyButton variant="panel" />
 
@@ -465,69 +414,8 @@ textarea:focus {
   max-width: 34rem;
 }
 
-.payment {
+.success :deep(.payment) {
   margin-top: 1.25rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.payment h2 {
-  margin: 0 0 0.85rem;
-  font-size: 1.05rem;
-}
-
-.payment__details {
-  margin: 0;
-  display: grid;
-  gap: 0.7rem;
-}
-
-.payment__details > div {
-  display: grid;
-  grid-template-columns: 6.5rem 1fr;
-  gap: 0.6rem;
-  align-items: baseline;
-}
-
-.payment__details dt {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: 0.88rem;
-}
-
-.payment__details dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.5rem;
-}
-
-.payment__phone {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  border-bottom: 1px solid var(--line);
-}
-
-.payment__phone:hover {
-  color: var(--green);
-  border-bottom-color: var(--green);
-}
-
-.payment__copied {
-  color: var(--green);
-  font-size: 0.85rem;
-  font-weight: 500;
 }
 
 @media (max-width: 820px) {
