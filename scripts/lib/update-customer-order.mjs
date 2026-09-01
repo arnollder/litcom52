@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { moyskladFetch } from './moysklad-env.mjs'
+import { isNewCustomerOrderState } from './customer-order-state.mjs'
 import { buildReservedPositions } from './create-customer-order.mjs'
 import { getCustomerOrderForCounterparty } from './list-customer-orders.mjs'
 
@@ -28,7 +29,7 @@ async function assertEditableByCounterparty(orderId, counterpartyId) {
     error.status = 404
     throw error
   }
-  if (order.status !== 'new') {
+  if (!isNewCustomerOrderState(order.moySklad?.stateName)) {
     const error = new Error(
       `Редактирование недоступно: заказ в статусе «${order.moySklad?.stateName || order.status}».`,
     )

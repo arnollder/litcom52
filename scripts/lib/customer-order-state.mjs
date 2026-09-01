@@ -32,6 +32,10 @@ export function mapMoySkladStateToStatus(stateName) {
   return null
 }
 
+export function isNewCustomerOrderState(stateName) {
+  return mapMoySkladStateToStatus(stateName) === 'new'
+}
+
 export function isPaidLikeStatus(status, stateName) {
   if (status === 'paid' || status === 'shipped') return true
   const mapped = mapMoySkladStateToStatus(stateName)

@@ -3,6 +3,7 @@
 import { getBaseUrl, moyskladFetch } from './moysklad-env.mjs'
 import {
   isPaidLikeStatus,
+  isNewCustomerOrderState,
   mapMoySkladStateToStatus,
 } from './customer-order-state.mjs'
 import { isStorefrontOrderComment } from './storefront-order-comment.mjs'
@@ -129,6 +130,7 @@ export async function listCustomerOrdersForAdmin({ limit = DEFAULT_LIMIT } = {})
  */
 export async function mapCustomerOrderToCustomer(row, { positions } = {}) {
   const admin = await mapCustomerOrderToAdmin(row, { positions })
+  const stateName = admin.moySklad?.stateName || row?.state?.name || null
   return {
     id: admin.id,
     createdAt: admin.createdAt,
@@ -136,10 +138,10 @@ export async function mapCustomerOrderToCustomer(row, { positions } = {}) {
     items: admin.items,
     total: admin.total,
     comment: admin.comment,
-    canEdit: admin.status === 'new',
+    canEdit: isNewCustomerOrderState(stateName),
     moySklad: {
       name: admin.moySklad?.name || null,
-      stateName: admin.moySklad?.stateName || null,
+      stateName,
     },
   }
 }
