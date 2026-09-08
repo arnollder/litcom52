@@ -102,10 +102,35 @@ export async function fetchCounterpartiesFromMoySklad() {
 }
 
 /**
+ * Resolves a group by storefront token (server-side mapping).
+ * @param {string} token
+ */
+export async function resolveCounterpartyByToken(token) {
+  const response = await fetch(`${getApiBase()}/api/counterparty/resolve`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json;charset=utf-8',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ token: String(token || '').trim() }),
+  })
+
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || `Неверный токен (${response.status})`)
+  }
+
+  return {
+    id: String(data.counterparty?.id || ''),
+    name: String(data.counterparty?.name || ''),
+    contact: String(data.counterparty?.contact || ''),
+  }
+}
+
+/**
  * Creates a MoySklad customer order and reserves cart lines.
  * @param {{
- *   counterpartyId: string,
- *   counterpartyName?: string,
+ *   token: string,
  *   items: Array<{ id: string|number, qty: number, price: number, name: string }>,
  *   comment?: string,
  *   customer?: object,
@@ -121,8 +146,7 @@ export async function reserveOrderInMoySklad(payload) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      counterpartyId: payload.counterpartyId,
-      counterpartyName: payload.counterpartyName,
+      token: payload.token,
       comment: payload.comment,
       customer: payload.customer,
       total: payload.total,
@@ -142,7 +166,10 @@ export async function reserveOrderInMoySklad(payload) {
     throw new Error(data?.error || `Не удалось зарезервировать заказ (${response.status})`)
   }
 
-  return data.order
+  return {
+    order: data.order,
+    counterparty: data.counterparty || null,
+  }
 }
 
 /**
@@ -170,9 +197,9 @@ export async function fetchLiveStock() {
   }
 }
 
-export async function fetchCustomerOrders(counterpartyId) {
+export async function fetchCustomerOrders(token) {
   const url = new URL(`${getApiBase()}/api/orders`, window.location.origin)
-  url.searchParams.set('counterpartyId', String(counterpartyId || '').trim())
+  url.searchParams.set('token', String(token || '').trim())
 
   const response = await fetch(url.toString(), {
     method: 'GET',
@@ -188,10 +215,11 @@ export async function fetchCustomerOrders(counterpartyId) {
   return {
     orders: Array.isArray(data.orders) ? data.orders : [],
     count: data.count || 0,
+    counterparty: data.counterparty || null,
   }
 }
 
-export async function updateCustomerOrder(orderId, { counterpartyId, items }) {
+export async function updateCustomerOrder(orderId, { token, items }) {
   const response = await fetch(`${getApiBase()}/api/orders/${encodeURIComponent(orderId)}`, {
     method: 'PATCH',
     headers: {
@@ -199,7 +227,7 @@ export async function updateCustomerOrder(orderId, { counterpartyId, items }) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      counterpartyId,
+      token,
       items: (items || []).map((item) => ({
         id: String(item.id),
         qty: Number(item.qty),

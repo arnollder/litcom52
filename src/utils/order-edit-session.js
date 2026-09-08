@@ -20,7 +20,7 @@ export function useOrderEditSession() {
 }
 
 /**
- * @param {{ orderId: string, orderName?: string, counterpartyId: string, items: OrderLine[] }} payload
+ * @param {{ orderId: string, orderName?: string, counterpartyId: string, token?: string, items: OrderLine[] }} payload
  */
 export function saveOrderEditSession(payload) {
   if (typeof window === 'undefined') return
@@ -31,6 +31,7 @@ export function saveOrderEditSession(payload) {
         orderId: String(payload.orderId || ''),
         orderName: String(payload.orderName || ''),
         counterpartyId: String(payload.counterpartyId || ''),
+        token: String(payload.token || ''),
         items: Array.isArray(payload.items) ? payload.items : [],
       }),
     )
@@ -40,7 +41,7 @@ export function saveOrderEditSession(payload) {
   }
 }
 
-/** @returns {{ orderId: string, orderName: string, counterpartyId: string, items: OrderLine[] } | null} */
+/** @returns {{ orderId: string, orderName: string, counterpartyId: string, token: string, items: OrderLine[] } | null} */
 export function readOrderEditSession() {
   if (typeof window === 'undefined') return null
   try {
@@ -49,11 +50,13 @@ export function readOrderEditSession() {
     const parsed = JSON.parse(raw)
     const orderId = String(parsed?.orderId || '').trim()
     const counterpartyId = String(parsed?.counterpartyId || '').trim()
+    const token = String(parsed?.token || '').trim()
     if (!orderId || !counterpartyId) return null
     return {
       orderId,
       orderName: String(parsed?.orderName || ''),
       counterpartyId,
+      token,
       items: Array.isArray(parsed?.items) ? parsed.items : [],
     }
   } catch {

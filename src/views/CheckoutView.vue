@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import QtyControl from '../components/QtyControl.vue'
-import CounterpartySelect from '../components/CounterpartySelect.vue'
 import PaymentDetails from '../components/PaymentDetails.vue'
 import { useCartStore } from '../stores/cart'
 import { reserveOrderInMoySklad } from '../services/moysklad'
@@ -15,11 +14,13 @@ const isSubmitting = ref(false)
 const submitError = ref('')
 const reservedOrder = ref(null)
 const submittedTotal = ref(0)
+const resolvedGroup = ref(null)
 
-const selectedCounterparty = ref(getSavedCounterparty())
+const saved = getSavedCounterparty()
+const groupToken = ref(saved?.token || '')
 
 const canSubmit = computed(
-  () => cart.count > 0 && selectedCounterparty.value?.id && !isSubmitting.value,
+  () => cart.count > 0 && groupToken.value.trim().length > 0 && !isSubmitting.value,
 )
 
 async function submit() {
@@ -28,39 +29,44 @@ async function submit() {
   isSubmitting.value = true
   submitError.value = ''
 
+  const token = groupToken.value.trim()
   const orderSnapshot = {
     createdAt: new Date().toISOString(),
-    customer: {
-      contact: selectedCounterparty.value?.contact || '',
-      counterparty: selectedCounterparty.value
-        ? {
-            id: selectedCounterparty.value.id,
-            name: selectedCounterparty.value.name,
-          }
-        : null,
-    },
     items: cart.lines.map((line) => ({ ...line })),
     total: cart.total,
   }
 
   try {
-    const moySkladOrder = await reserveOrderInMoySklad({
-      counterpartyId: selectedCounterparty.value.id,
-      counterpartyName: selectedCounterparty.value.name,
+    const { order: moySkladOrder, counterparty } = await reserveOrderInMoySklad({
+      token,
       items: orderSnapshot.items,
-      customer: orderSnapshot.customer,
       total: orderSnapshot.total,
       createdAt: orderSnapshot.createdAt,
     })
 
+    if (!counterparty?.id) {
+      throw new Error('Сервер не вернул группу по токену')
+    }
+
+    resolvedGroup.value = counterparty
     reservedOrder.value = moySkladOrder
     submittedTotal.value = orderSnapshot.total
     saveCounterparty({
-      id: selectedCounterparty.value.id,
-      name: selectedCounterparty.value.name,
+      id: counterparty.id,
+      name: counterparty.name,
+      contact: counterparty.contact || '',
+      token,
     })
+
     const order = {
       ...orderSnapshot,
+      customer: {
+        contact: counterparty.contact || '',
+        counterparty: {
+          id: counterparty.id,
+          name: counterparty.name,
+        },
+      },
       moySklad: moySkladOrder,
     }
     localStorage.setItem('litcom52-last-order', JSON.stringify(order))
@@ -95,7 +101,9 @@ function removeLine(id) {
         <p class="eyebrow">Готово</p>
         <h1 class="display">Заказ зарезервирован</h1>
         <p class="muted">
-          Позиции поставлены в резерв. Оплатите заказ по реквизитам ниже и напишите в чат
+          Группа
+          <strong>{{ resolvedGroup?.name }}</strong>
+          — позиции поставлены в резерв. Оплатите заказ по реквизитам ниже и напишите в чат
           литкома после перевода.
         </p>
         <p v-if="reservedOrder?.name" class="hint muted">
@@ -168,18 +176,27 @@ function removeLine(id) {
         </section>
 
         <form class="panel reveal reveal-delay-1" @submit.prevent="submit">
-          <h2>Контакты</h2>
-          <CounterpartySelect
-            v-model="selectedCounterparty"
-            label="Кто заказывает"
-          />
+          <h2>Токен группы</h2>
+          <label>
+            Введите токен
+            <input
+              v-model="groupToken"
+              type="text"
+              name="group-token"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              placeholder="например: антей"
+              required
+            />
+          </label>
           <button class="btn btn-primary btn-block" type="submit" :disabled="!canSubmit">
             {{ isSubmitting ? 'Резервируем…' : 'Отправить заказ' }}
           </button>
           <p v-if="submitError" class="hint error">{{ submitError }}</p>
           <p class="hint muted">
-            При отправке позиции резервируются в МойСклад. После оформления покажем реквизиты
-            для оплаты.
+            Токен выдаёт литком. По нему определяется группа — искать контрагента не нужно.
+            После отправки позиции резервируются в МойСклад.
           </p>
         </form>
       </div>
@@ -331,19 +348,16 @@ label {
   color: var(--ink-muted);
 }
 
-input,
-textarea {
+input {
   width: 100%;
   padding: 0.8rem 0.9rem;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--inset);
   color: var(--ink);
-  resize: vertical;
 }
 
-input:focus,
-textarea:focus {
+input:focus {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
@@ -360,43 +374,6 @@ textarea:focus {
 
 .error {
   color: var(--danger-text);
-}
-
-.counterparty-search {
-  gap: 0.35rem;
-}
-
-.counterparty-list {
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--inset-soft);
-  max-height: 260px;
-  overflow: auto;
-  padding: 0.5rem;
-  display: grid;
-  gap: 0.45rem;
-}
-
-.counterparty-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  border: 1px solid var(--accent-border-faint);
-  border-radius: 10px;
-  padding: 0.55rem 0.65rem;
-}
-
-.counterparty-option input {
-  width: auto;
-  margin-top: 0.18rem;
-}
-
-.counterparty-option strong {
-  display: block;
-}
-
-.counterparty-option small {
-  display: block;
 }
 
 .actions {

@@ -20,7 +20,7 @@ const isAdmin = computed(() => props.audience === 'admin')
 
 const visible = computed(() => {
   if (isAdmin.value) return adminPush.supported.value
-  return customerPush.isSupported.value && Boolean(savedCounterparty.value)
+  return customerPush.isSupported.value && Boolean(savedCounterparty.value?.token)
 })
 
 const isOn = computed(() =>

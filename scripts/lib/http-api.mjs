@@ -32,6 +32,7 @@ import {
   notifyOrderShipped,
 } from './web-push.mjs'
 import { notifyPushForNewOrder, notifyPushForPaidOrder } from './admin-push-poller.mjs'
+import { resolveCounterpartyByToken } from './counterparty-tokens.mjs'
 
 export function sendJson(res, status, payload) {
   res.statusCode = status
@@ -57,8 +58,18 @@ function corsPreflight(res, methods) {
   res.statusCode = 204
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', methods)
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Token')
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, X-Admin-Token, X-Counterparty-Token',
+  )
   res.end()
+}
+
+function extractCounterpartyToken(req, body = {}, url = null) {
+  const fromHeader = String(req.headers['x-counterparty-token'] || '').trim()
+  const fromBody = String(body?.token || body?.groupToken || '').trim()
+  const fromQuery = url ? String(url.searchParams.get('token') || '').trim() : ''
+  return fromBody || fromHeader || fromQuery
 }
 
 function getAdminToken() {
@@ -92,6 +103,35 @@ function mapErrorStatus(error) {
   return status >= 400 && status < 600 ? status : 500
 }
 
+export async function handleResolveCounterparty(req, res) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'POST, OPTIONS')
+    return
+  }
+
+  if (req.method !== 'POST') {
+    sendJson(res, 405, { error: 'Method not allowed' })
+    return
+  }
+
+  try {
+    const body = await readJsonBody(req)
+    const token = extractCounterpartyToken(req, body)
+    const counterparty = await resolveCounterpartyByToken(token)
+    sendJson(res, 200, {
+      ok: true,
+      counterparty: {
+        id: counterparty.id,
+        name: counterparty.name,
+        contact: counterparty.contact,
+      },
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Resolve failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
 export async function handleReserveOrder(req, res) {
   if (req.method === 'OPTIONS') {
     corsPreflight(res, 'POST, OPTIONS')
@@ -106,10 +146,21 @@ export async function handleReserveOrder(req, res) {
   try {
     await loadEnvFromFile()
     const body = await readJsonBody(req)
+    const token = extractCounterpartyToken(req, body)
+    const counterparty = await resolveCounterpartyByToken(token)
+
+    const customer = {
+      ...(body.customer && typeof body.customer === 'object' ? body.customer : {}),
+      contact: body.customer?.contact || counterparty.contact || '',
+      counterparty: {
+        id: counterparty.id,
+        name: counterparty.name,
+      },
+    }
+
     const result = await createReservedCustomerOrder({
-      counterpartyId: body.counterpartyId,
-      counterpartyName:
-        body.counterpartyName || body.customer?.counterparty?.name || body.customer?.name || '',
+      counterpartyId: counterparty.id,
+      counterpartyName: counterparty.name,
       items: body.items,
       comment: body.comment,
     })
@@ -118,7 +169,7 @@ export async function handleReserveOrder(req, res) {
     try {
       inboxOrder = await appendOrder({
         createdAt: body.createdAt || new Date().toISOString(),
-        customer: body.customer || null,
+        customer,
         items: body.items,
         total: body.total,
         comment: result.description || body.comment || '',
@@ -128,17 +179,22 @@ export async function handleReserveOrder(req, res) {
       console.error('[orders-store] failed to persist order', storeError)
     }
 
-    sendJson(res, 200, { ok: true, order: result, inbox: inboxOrder })
+    sendJson(res, 200, {
+      ok: true,
+      order: result,
+      inbox: inboxOrder,
+      counterparty: {
+        id: counterparty.id,
+        name: counterparty.name,
+        contact: counterparty.contact,
+      },
+    })
 
     notifyPushForNewOrder({
       id: result?.id,
       name: result?.name,
       moySklad: result,
-      counterpartyName:
-        body.counterpartyName ||
-        body.customer?.counterparty?.name ||
-        body.customer?.name ||
-        '',
+      counterpartyName: counterparty.name,
     }).catch((pushError) => {
       console.error('[push] reserve notify failed', pushError)
     })
@@ -415,9 +471,21 @@ export async function handlePushSubscribe(req, res) {
       return
     }
 
+    let counterpartyId = ''
+    let counterpartyName = ''
+    const token = extractCounterpartyToken(req, body)
+    if (!token) {
+      const error = new Error('Нужен токен группы для подписки на уведомления')
+      error.status = 400
+      throw error
+    }
+    const counterparty = await resolveCounterpartyByToken(token)
+    counterpartyId = counterparty.id
+    counterpartyName = counterparty.name
+
     const row = await upsertPushSubscription({
-      counterpartyId: body.counterpartyId,
-      counterpartyName: body.counterpartyName,
+      counterpartyId,
+      counterpartyName,
       subscription: body.subscription,
     })
     sendJson(res, 200, { ok: true, id: row.id })
@@ -438,19 +506,25 @@ export async function handleCustomerOrders(req, res, pathname) {
     const url = new URL(req.url || '/api/orders', 'http://localhost')
 
     if (pathname === '/api/orders' && req.method === 'GET') {
-      const counterpartyId = String(url.searchParams.get('counterpartyId') || '').trim()
-      const result = await listCustomerOrdersForCounterparty(counterpartyId)
-      sendJson(res, 200, { ok: true, ...result })
+      const token = extractCounterpartyToken(req, {}, url)
+      const counterparty = await resolveCounterpartyByToken(token)
+      const result = await listCustomerOrdersForCounterparty(counterparty.id)
+      sendJson(res, 200, {
+        ok: true,
+        counterparty: { id: counterparty.id, name: counterparty.name },
+        ...result,
+      })
       return
     }
 
     const match = pathname.match(/^\/api\/orders\/([^/]+)$/)
     if (match) {
       const orderId = match[1]
-      const counterpartyId = String(url.searchParams.get('counterpartyId') || '').trim()
 
       if (req.method === 'GET') {
-        const order = await getCustomerOrderForCounterparty(orderId, counterpartyId)
+        const token = extractCounterpartyToken(req, {}, url)
+        const counterparty = await resolveCounterpartyByToken(token)
+        const order = await getCustomerOrderForCounterparty(orderId, counterparty.id)
         if (!order) {
           sendJson(res, 404, { ok: false, error: 'Заказ не найден' })
           return
@@ -461,10 +535,11 @@ export async function handleCustomerOrders(req, res, pathname) {
 
       if (req.method === 'PATCH') {
         const body = await readJsonBody(req)
-        const cpId = String(body.counterpartyId || counterpartyId || '').trim()
+        const token = extractCounterpartyToken(req, body, url)
+        const counterparty = await resolveCounterpartyByToken(token)
         const order = await updateCustomerOrderItems({
           orderId,
-          counterpartyId: cpId,
+          counterpartyId: counterparty.id,
           items: body.items,
         })
         sendJson(res, 200, { ok: true, order })
@@ -491,6 +566,11 @@ export async function handleApiRequest(req, res) {
   }
   if (pathname === '/api/push/subscribe') {
     await handlePushSubscribe(req, res)
+    return true
+  }
+
+  if (pathname === '/api/counterparty/resolve') {
+    await handleResolveCounterparty(req, res)
     return true
   }
 

@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cart'
 import { updateCustomerOrder } from '../services/moysklad'
+import { getSavedGroupToken } from '../utils/counterparty.js'
 import {
   clearOrderEditSession,
   mergeOrderItems,
@@ -35,7 +36,7 @@ export function useAppendToOrder() {
         })),
       )
       await updateCustomerOrder(session.value.orderId, {
-        counterpartyId: session.value.counterpartyId,
+        token: session.value.token || getSavedGroupToken(),
         items,
       })
       clearOrderEditSession()

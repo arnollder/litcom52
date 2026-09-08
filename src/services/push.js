@@ -24,14 +24,14 @@ export async function fetchPushPublicKey() {
   return data.publicKey || ''
 }
 
-export async function subscribePush({ counterpartyId, counterpartyName, subscription }) {
+export async function subscribePush({ counterpartyId, counterpartyName, token, subscription }) {
   const response = await fetch(`${getApiBase()}/api/push/subscribe`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ counterpartyId, counterpartyName, subscription }),
+    body: JSON.stringify({ counterpartyId, counterpartyName, token, subscription }),
   })
   const data = await parseJson(response)
   if (!response.ok || !data?.ok) {

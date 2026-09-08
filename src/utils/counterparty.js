@@ -2,7 +2,9 @@ import { ref } from 'vue'
 
 const STORAGE_KEY = 'litcom52-counterparty'
 
-/** @type {import('vue').Ref<{ id: string, name: string } | null> | null} */
+/** @typedef {{ id: string, name: string, token?: string, contact?: string }} SavedCounterparty */
+
+/** @type {import('vue').Ref<SavedCounterparty | null> | null} */
 let savedCounterpartyRef = null
 
 function readFromStorage() {
@@ -13,8 +15,10 @@ function readFromStorage() {
     const parsed = JSON.parse(raw)
     const id = String(parsed?.id || '').trim()
     const name = String(parsed?.name || '').trim()
+    const token = String(parsed?.token || '').trim()
+    const contact = String(parsed?.contact || '').trim()
     if (!id || !name) return null
-    return { id, name }
+    return { id, name, ...(token ? { token } : {}), ...(contact ? { contact } : {}) }
   } catch {
     return null
   }
@@ -27,7 +31,7 @@ function getRef() {
   return savedCounterpartyRef
 }
 
-/** @returns {{ id: string, name: string } | null} */
+/** @returns {SavedCounterparty | null} */
 export function getSavedCounterparty() {
   const current = getRef().value
   if (current) return current
@@ -36,23 +40,35 @@ export function getSavedCounterparty() {
   return stored
 }
 
-/** @returns {import('vue').Ref<{ id: string, name: string } | null>} */
+/** @returns {import('vue').Ref<SavedCounterparty | null>} */
 export function useSavedCounterparty() {
   return getRef()
 }
 
-/** @param {{ id: string, name: string }} counterparty */
+/** @param {SavedCounterparty} counterparty */
 export function saveCounterparty(counterparty) {
   if (typeof window === 'undefined') return
   const id = String(counterparty?.id || '').trim()
   const name = String(counterparty?.name || '').trim()
+  const token = String(counterparty?.token || '').trim()
+  const contact = String(counterparty?.contact || '').trim()
   if (!id || !name) return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ id, name }))
-  getRef().value = { id, name }
+  const payload = {
+    id,
+    name,
+    ...(token ? { token } : {}),
+    ...(contact ? { contact } : {}),
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+  getRef().value = payload
 }
 
 export function clearSavedCounterparty() {
   if (typeof window === 'undefined') return
   localStorage.removeItem(STORAGE_KEY)
   getRef().value = null
+}
+
+export function getSavedGroupToken() {
+  return String(getSavedCounterparty()?.token || '').trim()
 }

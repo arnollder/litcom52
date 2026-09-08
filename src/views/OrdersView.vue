@@ -1,12 +1,20 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import CounterpartySelect from '../components/CounterpartySelect.vue'
 import PaymentDetails from '../components/PaymentDetails.vue'
 import QtyControl from '../components/QtyControl.vue'
 import { useCartStore } from '../stores/cart'
-import { fetchCustomerOrders, fetchLiveStock, updateCustomerOrder } from '../services/moysklad'
-import { getSavedCounterparty } from '../utils/counterparty.js'
+import {
+  fetchCustomerOrders,
+  fetchLiveStock,
+  resolveCounterpartyByToken,
+  updateCustomerOrder,
+} from '../services/moysklad'
+import {
+  clearSavedCounterparty,
+  getSavedCounterparty,
+  saveCounterparty,
+} from '../utils/counterparty.js'
 import {
   clearOrderEditSession,
   readOrderEditSession,
@@ -23,7 +31,10 @@ const STATUS_LABEL = {
   cancelled: 'Отменён',
 }
 
-const counterparty = ref(getSavedCounterparty())
+const saved = getSavedCounterparty()
+const groupToken = ref(saved?.token || '')
+const counterparty = ref(saved?.token ? saved : null)
+const isResolving = ref(false)
 const orders = ref([])
 const isLoading = ref(false)
 const error = ref('')
@@ -35,7 +46,7 @@ const saveError = ref('')
 const editBaseItemIds = ref(new Set())
 const catalogQuery = ref('')
 
-const hasCounterparty = computed(() => Boolean(counterparty.value?.id))
+const hasCounterparty = computed(() => Boolean(counterparty.value?.id && counterparty.value?.token))
 
 const catalogMatches = computed(() => {
   const q = catalogQuery.value.trim().toLowerCase()
@@ -152,6 +163,7 @@ function openCatalog(order) {
     orderId: order.id,
     orderName: order.moySklad?.name || '',
     counterpartyId: counterparty.value.id,
+    token: counterparty.value.token || '',
     items: draftItems.value.filter((item) => Number(item.qty) > 0),
   })
   router.push('/shop')
@@ -163,6 +175,41 @@ function restoreEditSession(order) {
   draftItems.value = session.items.map((item) => ({ ...item }))
   clearOrderEditSession()
   return true
+}
+
+async function applyToken() {
+  const token = groupToken.value.trim()
+  if (!token || isResolving.value) return
+
+  isResolving.value = true
+  error.value = ''
+  try {
+    const resolved = await resolveCounterpartyByToken(token)
+    const next = {
+      id: resolved.id,
+      name: resolved.name,
+      contact: resolved.contact || '',
+      token,
+    }
+    saveCounterparty(next)
+    counterparty.value = next
+  } catch (err) {
+    clearSavedCounterparty()
+    counterparty.value = null
+    orders.value = []
+    error.value = err instanceof Error ? err.message : 'Неверный токен'
+  } finally {
+    isResolving.value = false
+  }
+}
+
+function clearToken() {
+  groupToken.value = ''
+  clearSavedCounterparty()
+  counterparty.value = null
+  orders.value = []
+  cancelEdit()
+  error.value = ''
 }
 
 watch(
@@ -177,11 +224,11 @@ watch(
 )
 
 async function loadOrders() {
-  if (!counterparty.value?.id) return
+  if (!counterparty.value?.token) return
   isLoading.value = true
   error.value = ''
   try {
-    const result = await fetchCustomerOrders(counterparty.value.id)
+    const result = await fetchCustomerOrders(counterparty.value.token)
     orders.value = result.orders
     if (editingId.value) {
       const current = orders.value.find((row) => row.id === editingId.value)
@@ -225,7 +272,7 @@ function cancelEdit() {
 }
 
 async function saveEdit(order) {
-  if (!counterparty.value?.id || isSaving.value) return
+  if (!counterparty.value?.token || isSaving.value) return
   const items = draftItems.value.filter((item) => Number(item.qty) > 0)
   if (!items.length) {
     saveError.value = 'Добавьте хотя бы одну позицию'
@@ -236,7 +283,7 @@ async function saveEdit(order) {
   saveError.value = ''
   try {
     const updated = await updateCustomerOrder(order.id, {
-      counterpartyId: counterparty.value.id,
+      token: counterparty.value.token,
       items,
     })
     orders.value = orders.value.map((row) => (row.id === updated.id ? updated : row))
@@ -256,7 +303,7 @@ async function saveEdit(order) {
       <div>
         <p class="eyebrow">Личный кабинет</p>
         <h1 class="display">Мои заказы</h1>
-        <p class="muted">Выберите контрагента — покажем историю его заказов.</p>
+        <p class="muted">Введите токен группы — покажем историю её заказов.</p>
       </div>
       <button
         v-if="hasCounterparty"
@@ -270,12 +317,36 @@ async function saveEdit(order) {
     </header>
 
     <section class="panel reveal orders__picker">
-      <CounterpartySelect
-        v-model="counterparty"
-        :persist="false"
-        input-name="orders-counterparty"
-        label="Контрагент"
-      />
+      <form class="token-form" @submit.prevent="applyToken">
+        <label>
+          Токен группы
+          <input
+            v-model="groupToken"
+            type="text"
+            name="group-token"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            placeholder="например: антей"
+          />
+        </label>
+        <div class="token-form__actions">
+          <button class="btn btn-primary" type="submit" :disabled="!groupToken.trim() || isResolving">
+            {{ isResolving ? 'Проверяем…' : hasCounterparty ? 'Сменить' : 'Войти' }}
+          </button>
+          <button
+            v-if="hasCounterparty"
+            class="btn btn-ghost"
+            type="button"
+            @click="clearToken"
+          >
+            Выйти
+          </button>
+        </div>
+        <p v-if="counterparty?.name" class="hint muted">
+          Группа: <strong>{{ counterparty.name }}</strong>
+        </p>
+      </form>
     </section>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -441,6 +512,43 @@ async function saveEdit(order) {
 
 .orders__picker {
   margin-bottom: 1rem;
+}
+
+.token-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.token-form label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+}
+
+.token-form input {
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--inset);
+  color: var(--ink);
+}
+
+.token-form input:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.token-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.token-form .hint {
+  margin: 0;
+  font-size: 0.88rem;
 }
 
 .order-card {

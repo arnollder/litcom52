@@ -64,7 +64,7 @@ export function usePushNotifications() {
   const canEnable = computed(
     () =>
       isSupported.value &&
-      Boolean(savedCounterparty.value) &&
+      Boolean(savedCounterparty.value?.token) &&
       permission.value !== 'denied' &&
       !isSubscribed.value &&
       !isLoading.value,
@@ -75,7 +75,7 @@ export function usePushNotifications() {
   const canRetryDenied = computed(
     () =>
       isSupported.value &&
-      Boolean(savedCounterparty.value) &&
+      Boolean(savedCounterparty.value?.token) &&
       permission.value === 'denied' &&
       !isLoading.value,
   )
@@ -149,6 +149,7 @@ export function usePushNotifications() {
       await subscribePush({
         counterpartyId: counterparty.id,
         counterpartyName: counterparty.name,
+        token: counterparty.token,
         subscription: subscriptionPayload(subscription),
       })
 
