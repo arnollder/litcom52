@@ -169,6 +169,7 @@ export async function reserveOrderInMoySklad(payload) {
   return {
     order: data.order,
     counterparty: data.counterparty || null,
+    payment: data.payment || null,
   }
 }
 
@@ -216,6 +217,7 @@ export async function fetchCustomerOrders(token) {
     orders: Array.isArray(data.orders) ? data.orders : [],
     count: data.count || 0,
     counterparty: data.counterparty || null,
+    payment: data.payment || null,
   }
 }
 

@@ -35,6 +35,7 @@ const saved = getSavedCounterparty()
 const groupToken = ref(saved?.token || '')
 const counterparty = ref(saved?.token ? saved : null)
 const isResolving = ref(false)
+const paymentDetails = ref(null)
 const orders = ref([])
 const isLoading = ref(false)
 const error = ref('')
@@ -196,6 +197,7 @@ async function applyToken() {
   } catch (err) {
     clearSavedCounterparty()
     counterparty.value = null
+    paymentDetails.value = null
     orders.value = []
     error.value = err instanceof Error ? err.message : 'Неверный токен'
   } finally {
@@ -207,6 +209,7 @@ function clearToken() {
   groupToken.value = ''
   clearSavedCounterparty()
   counterparty.value = null
+  paymentDetails.value = null
   orders.value = []
   cancelEdit()
   error.value = ''
@@ -230,6 +233,7 @@ async function loadOrders() {
   try {
     const result = await fetchCustomerOrders(counterparty.value.token)
     orders.value = result.orders
+    paymentDetails.value = result.payment || null
     if (editingId.value) {
       const current = orders.value.find((row) => row.id === editingId.value)
       if (!current?.canEdit) cancelEdit()
@@ -237,6 +241,7 @@ async function loadOrders() {
     resumeEditIfNeeded()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Не удалось загрузить заказы'
+    paymentDetails.value = null
   } finally {
     isLoading.value = false
   }
@@ -448,8 +453,9 @@ async function saveEdit(order) {
           </ul>
 
           <PaymentDetails
-            v-if="order.status === 'new'"
+            v-if="order.status === 'new' && paymentDetails"
             compact
+            :payment="paymentDetails"
             :amount="order.total"
           />
         </template>

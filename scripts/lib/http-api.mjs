@@ -33,6 +33,7 @@ import {
 } from './web-push.mjs'
 import { notifyPushForNewOrder, notifyPushForPaidOrder } from './admin-push-poller.mjs'
 import { resolveCounterpartyByToken } from './counterparty-tokens.mjs'
+import { getPaymentDetails } from './payment-details.mjs'
 
 export function sendJson(res, status, payload) {
   res.statusCode = status
@@ -179,6 +180,8 @@ export async function handleReserveOrder(req, res) {
       console.error('[orders-store] failed to persist order', storeError)
     }
 
+    const payment = await getPaymentDetails()
+
     sendJson(res, 200, {
       ok: true,
       order: result,
@@ -188,6 +191,7 @@ export async function handleReserveOrder(req, res) {
         name: counterparty.name,
         contact: counterparty.contact,
       },
+      payment,
     })
 
     notifyPushForNewOrder({
@@ -509,9 +513,11 @@ export async function handleCustomerOrders(req, res, pathname) {
       const token = extractCounterpartyToken(req, {}, url)
       const counterparty = await resolveCounterpartyByToken(token)
       const result = await listCustomerOrdersForCounterparty(counterparty.id)
+      const payment = await getPaymentDetails()
       sendJson(res, 200, {
         ok: true,
         counterparty: { id: counterparty.id, name: counterparty.name },
+        payment,
         ...result,
       })
       return

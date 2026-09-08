@@ -1,13 +1,11 @@
 <script setup>
-import { ref } from 'vue'
-import {
-  PAYMENT_METHOD,
-  PAYMENT_PHONE,
-  PAYMENT_PHONE_LABEL,
-  PAYMENT_RECIPIENT,
-} from '../utils/payment.js'
+import { computed, ref } from 'vue'
 
-defineProps({
+const props = defineProps({
+  payment: {
+    type: Object,
+    default: null,
+  },
   amount: {
     type: Number,
     default: null,
@@ -24,12 +22,19 @@ defineProps({
 
 const phoneCopied = ref(false)
 
+const method = computed(() => String(props.payment?.method || '').trim())
+const phone = computed(() => String(props.payment?.phone || '').trim())
+const phoneLabel = computed(() => String(props.payment?.phoneLabel || props.payment?.phone || '').trim())
+const recipient = computed(() => String(props.payment?.recipient || '').trim())
+const visible = computed(() => Boolean(method.value && phone.value && recipient.value))
+
 async function copyPaymentPhone() {
+  if (!phone.value) return
   try {
-    await navigator.clipboard.writeText(PAYMENT_PHONE)
+    await navigator.clipboard.writeText(phone.value)
   } catch {
     const input = document.createElement('input')
-    input.value = PAYMENT_PHONE
+    input.value = phone.value
     document.body.appendChild(input)
     input.select()
     document.execCommand('copy')
@@ -44,7 +49,7 @@ async function copyPaymentPhone() {
 </script>
 
 <template>
-  <div class="payment" :class="{ 'payment--compact': compact }">
+  <div v-if="visible" class="payment" :class="{ 'payment--compact': compact }">
     <h2>{{ title }}</h2>
     <p v-if="compact" class="payment__hint muted">
       Оплатите заказ и напишите в чат литкома после перевода.
@@ -52,7 +57,7 @@ async function copyPaymentPhone() {
     <dl class="payment__details">
       <div>
         <dt>Способ</dt>
-        <dd>{{ PAYMENT_METHOD }}</dd>
+        <dd>{{ method }}</dd>
       </div>
       <div>
         <dt>Телефон</dt>
@@ -63,14 +68,14 @@ async function copyPaymentPhone() {
             :title="phoneCopied ? 'Скопировано' : 'Скопировать номер'"
             @click="copyPaymentPhone"
           >
-            {{ PAYMENT_PHONE_LABEL }}
+            {{ phoneLabel }}
           </button>
           <span v-if="phoneCopied" class="payment__copied">Скопировано</span>
         </dd>
       </div>
       <div>
         <dt>Получатель</dt>
-        <dd>{{ PAYMENT_RECIPIENT }}</dd>
+        <dd>{{ recipient }}</dd>
       </div>
       <div v-if="amount != null && amount > 0">
         <dt>Сумма</dt>

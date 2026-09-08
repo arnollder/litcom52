@@ -15,6 +15,7 @@ const submitError = ref('')
 const reservedOrder = ref(null)
 const submittedTotal = ref(0)
 const resolvedGroup = ref(null)
+const paymentDetails = ref(null)
 
 const saved = getSavedCounterparty()
 const groupToken = ref(saved?.token || '')
@@ -37,7 +38,7 @@ async function submit() {
   }
 
   try {
-    const { order: moySkladOrder, counterparty } = await reserveOrderInMoySklad({
+    const { order: moySkladOrder, counterparty, payment } = await reserveOrderInMoySklad({
       token,
       items: orderSnapshot.items,
       total: orderSnapshot.total,
@@ -47,8 +48,12 @@ async function submit() {
     if (!counterparty?.id) {
       throw new Error('Сервер не вернул группу по токену')
     }
+    if (!payment?.phone) {
+      throw new Error('Сервер не вернул реквизиты для оплаты')
+    }
 
     resolvedGroup.value = counterparty
+    paymentDetails.value = payment
     reservedOrder.value = moySkladOrder
     submittedTotal.value = orderSnapshot.total
     saveCounterparty({
@@ -68,6 +73,7 @@ async function submit() {
         },
       },
       moySklad: moySkladOrder,
+      payment,
     }
     localStorage.setItem('litcom52-last-order', JSON.stringify(order))
     cart.clear()
@@ -111,7 +117,7 @@ function removeLine(id) {
           <template v-if="reservedOrder.id"> · id {{ reservedOrder.id }}</template>
         </p>
 
-        <PaymentDetails :amount="submittedTotal" />
+        <PaymentDetails :payment="paymentDetails" :amount="submittedTotal" />
 
         <div class="actions">
           <RouterLink class="btn btn-primary" to="/shop">Вернуться в каталог</RouterLink>
