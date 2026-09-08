@@ -57,6 +57,12 @@ async function sendFile(res, filePath, pathname = '') {
 }
 
 async function handleStatic(req, res, pathname) {
+  // Never expose buyer directory — lives only under data/ for token resolve.
+  if (pathname === '/counterparties.json') {
+    sendJson(res, 404, { ok: false, error: 'Not found' })
+    return
+  }
+
   const candidate = safeDistPath(pathname)
   if (candidate) {
     try {

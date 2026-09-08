@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '..')
 const ENV_PATH = resolve(ROOT_DIR, '.env')
-const OUTPUT_PATH = resolve(ROOT_DIR, 'public/counterparties.json')
+const OUTPUT_PATH = resolve(ROOT_DIR, 'data/counterparties.json')
 const PAGE_SIZE = 100
 
 function parseEnvLine(line) {
@@ -119,14 +119,7 @@ async function main() {
   }
 
   await writeFile(OUTPUT_PATH, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
-
-  const distPath = resolve(ROOT_DIR, 'dist/counterparties.json')
-  try {
-    await writeFile(distPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
-    console.log(`Counterparties synced: ${deduped.length} buyers -> public/counterparties.json + dist/counterparties.json`)
-  } catch {
-    console.log(`Counterparties synced: ${deduped.length} buyers -> public/counterparties.json`)
-  }
+  console.log(`Counterparties synced: ${deduped.length} buyers -> data/counterparties.json`)
 }
 
 main().catch((error) => {

@@ -33,15 +33,19 @@ id -u litcom >/dev/null 2>&1 || useradd --system --home ${REMOTE_DIR} --shell /u
 chown -R litcom:litcom ${REMOTE_DIR}
 chmod 600 ${REMOTE_DIR}/.env
 mkdir -p ${REMOTE_DIR}/data
+# Buyer list and payment secrets must never be public static assets.
+rm -f ${REMOTE_DIR}/public/counterparties.json ${REMOTE_DIR}/dist/counterparties.json
 chown -R litcom:litcom ${REMOTE_DIR}/data
 cd ${REMOTE_DIR}
 sudo -u litcom npm ci
 sudo -u litcom npm run build
+rm -f ${REMOTE_DIR}/dist/counterparties.json
 systemctl restart litcom52
 sleep 2
 systemctl is-active litcom52 nginx
 curl -sS -o /dev/null -w 'home:%{http_code}\\n' http://127.0.0.1:4173/
 curl -sS -o /dev/null -w 'health:%{http_code}\\n' http://127.0.0.1:4173/healthz
+curl -sS -o /dev/null -w 'counterparties:%{http_code}\\n' http://127.0.0.1:4173/counterparties.json
 "
 
 echo "==> public check"

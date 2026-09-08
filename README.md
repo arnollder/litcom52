@@ -50,7 +50,7 @@ ssh root@62.113.110.31 "REGISTRATION_TOKEN=$TOKEN bash -s" < deploy/install-gith
 
 В форме `/checkout` выбирается контрагент МойСклад (radio + выпадающий список).
 
-Список контрагентов загружается из `public/counterparties.json`, который обновляется скриптом:
+Список контрагентов хранится только на бэке (`data/counterparties.json`) и обновляется скриптом:
 
 ```bash
 npm run sync:moysklad:counterparties
@@ -145,7 +145,7 @@ npm run sync:moysklad:cron
 Скрипт:
 
 1. тянет каталог → `src/data/catalog.json`;
-2. тянет контрагентов → `public/counterparties.json` и сразу в `dist/counterparties.json` (если `dist/` есть);
+2. тянет контрагентов → `data/counterparties.json` (не публикуется во фронт);
 3. по умолчанию делает `npm run build`, чтобы обновлённый каталог попал в бандл витрины.
 
 Переменные:

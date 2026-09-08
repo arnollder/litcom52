@@ -2,8 +2,8 @@
 
 /**
  * Cron-friendly MoySklad sync:
- * 1) catalog.json + counterparties.json
- * 2) counterparties also written to dist/ (runtime fetch)
+ * 1) catalog.json + data/counterparties.json
+ * 2) optional frontend rebuild so catalog.json lands in dist/
  * 3) optional frontend rebuild so catalog (bundled) goes live
  *
  * Env:

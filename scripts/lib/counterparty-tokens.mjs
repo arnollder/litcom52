@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '../..')
 const TOKENS_PATH = resolve(ROOT_DIR, 'data/counterparty-tokens.json')
-const COUNTERPARTIES_PATH = resolve(ROOT_DIR, 'public/counterparties.json')
+const COUNTERPARTIES_PATH = resolve(ROOT_DIR, 'data/counterparties.json')
 
 /** @type {{ map: Map<string, { id: string, name: string }>, loadedAt: number } | null} */
 let cache = null
