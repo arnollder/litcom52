@@ -17,6 +17,7 @@ rsync -az --delete \
   --exclude .git \
   --exclude dist \
   --exclude .vscode \
+  --exclude .tools \
   --exclude .env \
   --exclude .env.\* \
   --exclude data/orders.json \
