@@ -1,9 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import catalog from '../data/catalog.json'
-import { fetchLiveStock } from '../services/moysklad'
+import { fetchCatalog, fetchLiveStock } from '../services/moysklad'
 
 const STORAGE_KEY = 'litcom52-cart'
+
+function emptyCatalog() {
+  return { categories: [], starterSet: normalizeStarterSet([]) }
+}
 
 function loadCart() {
   try {
@@ -34,10 +37,10 @@ function normalizeStarterSet(rawStarterSet) {
 function cloneCatalog(source) {
   return {
     ...source,
-    categories: source.categories.map((cat) => ({
+    categories: (source.categories || []).map((cat) => ({
       ...cat,
       category: stripCategoryNumber(cat.category),
-      products: cat.products.map((product) => ({ ...product })),
+      products: (cat.products || []).map((product) => ({ ...product })),
     })),
     starterSet: normalizeStarterSet(source.starterSet),
   }
@@ -54,10 +57,22 @@ function rebuildProductIndex(catalogValue, indexMap) {
   }
 }
 
+function stockMapsEqual(a, b) {
+  const keysA = Object.keys(a || {})
+  const keysB = Object.keys(b || {})
+  if (keysA.length !== keysB.length) return false
+  for (const key of keysA) {
+    if (Number(a[key]) !== Number(b[key])) return false
+  }
+  return true
+}
+
 export const useCartStore = defineStore('cart', () => {
-  const liveCatalog = ref(cloneCatalog(catalog))
+  const liveCatalog = ref(emptyCatalog())
   const productIndex = new Map()
-  rebuildProductIndex(liveCatalog.value, productIndex)
+  const catalogStatus = ref({ loading: false, error: '', loaded: false })
+  let lastStockById = {}
+  let persistTimer = null
 
   const quantities = ref(loadCart())
   const toast = ref(null)
@@ -71,7 +86,14 @@ export const useCartStore = defineStore('cart', () => {
   watch(
     quantities,
     (value) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+      if (persistTimer) window.clearTimeout(persistTimer)
+      persistTimer = window.setTimeout(() => {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(value))
+        } catch {
+          // ignore quota / private mode
+        }
+      }, 200)
     },
     { deep: true },
   )
@@ -147,34 +169,70 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   function applyStockMap(stockById) {
-    const nextCatalog = cloneCatalog(liveCatalog.value)
-    for (const category of nextCatalog.categories) {
+    const map = stockById || {}
+    if (stockMapsEqual(map, lastStockById)) return false
+
+    let changed = false
+    for (const category of liveCatalog.value.categories) {
       for (const product of category.products) {
         const key = String(product.id)
-        if (Object.prototype.hasOwnProperty.call(stockById, key)) {
-          product.stock = Math.max(0, Math.floor(Number(stockById[key]) || 0))
+        if (!Object.prototype.hasOwnProperty.call(map, key)) continue
+        const nextStock = Math.max(0, Math.floor(Number(map[key]) || 0))
+        if (product.stock !== nextStock) {
+          product.stock = nextStock
+          changed = true
         }
+        const indexed = productIndex.get(key)
+        if (indexed && indexed.stock !== nextStock) indexed.stock = nextStock
       }
     }
-    liveCatalog.value = nextCatalog
-    rebuildProductIndex(liveCatalog.value, productIndex)
-    clampCartToStock()
+
+    lastStockById = { ...map }
+    if (changed) clampCartToStock()
+    return changed
   }
 
-  async function refreshStock() {
-    stockStatus.value = {
-      ...stockStatus.value,
-      loading: true,
-      error: '',
+  async function loadCatalog() {
+    if (catalogStatus.value.loaded || catalogStatus.value.loading) return liveCatalog.value
+    catalogStatus.value = { loading: true, error: '', loaded: false }
+    try {
+      const payload = await fetchCatalog()
+      liveCatalog.value = cloneCatalog(payload)
+      rebuildProductIndex(liveCatalog.value, productIndex)
+      catalogStatus.value = { loading: false, error: '', loaded: true }
+      return liveCatalog.value
+    } catch (error) {
+      catalogStatus.value = {
+        loading: false,
+        error: error instanceof Error ? error.message : 'Не удалось загрузить каталог',
+        loaded: false,
+      }
+      throw error
+    }
+  }
+
+  async function refreshStock({ silent = false } = {}) {
+    if (!silent) {
+      stockStatus.value = {
+        ...stockStatus.value,
+        loading: true,
+        error: '',
+      }
     }
     try {
-      const payload = await fetchLiveStock()
-      applyStockMap(payload.stockById || {})
+      await loadCatalog()
+      const payload = await fetchLiveStock({
+        etag: stockStatus.value.etag || '',
+      })
+      if (!payload.notModified) {
+        applyStockMap(payload.stockById || {})
+      }
       stockStatus.value = {
         loading: false,
         error: '',
-        updatedAt: payload.updatedAt || new Date().toISOString(),
+        updatedAt: payload.updatedAt || stockStatus.value.updatedAt || new Date().toISOString(),
         live: true,
+        etag: payload.etag || stockStatus.value.etag || '',
       }
       return payload
     } catch (error) {
@@ -236,6 +294,7 @@ export const useCartStore = defineStore('cart', () => {
 
   return {
     catalog: liveCatalog,
+    catalogStatus,
     quantities,
     lines,
     total,
@@ -248,6 +307,7 @@ export const useCartStore = defineStore('cart', () => {
     clear,
     addStarterSet,
     showToast,
+    loadCatalog,
     refreshStock,
     applyStockMap,
     productIndex,

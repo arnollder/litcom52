@@ -2,13 +2,13 @@
 
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { listCustomerOrdersForAdmin } from './list-customer-orders.mjs'
+import { listCustomerOrdersForAdminLite } from './list-customer-orders.mjs'
 import { isWebPushConfigured, notifyNewOrders, notifyOrderPaid } from './web-push.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
 
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '../..')
 const STATE_PATH = resolve(ROOT_DIR, 'data', 'push-poller-state.json')
-const POLL_MS = Number(process.env.ADMIN_PUSH_POLL_MS || 30_000)
+const POLL_MS = Number(process.env.ADMIN_PUSH_POLL_MS || 90_000)
 
 let timer = null
 let polling = false
@@ -50,7 +50,7 @@ async function pollOnce({ bootstrap = false } = {}) {
     await loadEnvFromFile()
     if (!isWebPushConfigured()) return
 
-    const listed = await listCustomerOrdersForAdmin({ limit: 100 })
+    const listed = await listCustomerOrdersForAdminLite({ limit: 100 })
     const newOrders = listed.orders.filter((order) => order.status === 'new')
     const paidOrders = listed.orders.filter((order) => order.status === 'paid')
     const nextNewIds = newOrders.map((order) => order.id)

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import PaymentDetails from '../components/PaymentDetails.vue'
 import QtyControl from '../components/QtyControl.vue'
@@ -257,9 +257,12 @@ async function startEdit(order) {
     draftItems.value = order.items.map((item) => ({ ...item }))
   }
   try {
-    const stock = await fetchLiveStock()
-    stockById.value = stock.stockById || {}
-    cart.applyStockMap(stock.stockById || {})
+    await cart.loadCatalog()
+    const stock = await fetchLiveStock({ etag: '' })
+    if (!stock.notModified) {
+      stockById.value = stock.stockById || {}
+      cart.applyStockMap(stock.stockById || {})
+    }
   } catch {
     stockById.value = {}
   }
@@ -289,7 +292,13 @@ async function saveEdit(order) {
   try {
     const updated = await updateCustomerOrder(order.id, {
       token: counterparty.value.token,
-      items,
+      items: items.map((item) => {
+        const product = cart.productIndex.get(String(item.id))
+        return {
+          ...item,
+          type: item.type || product?.type || '',
+        }
+      }),
     })
     orders.value = orders.value.map((row) => (row.id === updated.id ? updated : row))
     clearOrderEditSession()
@@ -300,6 +309,10 @@ async function saveEdit(order) {
     isSaving.value = false
   }
 }
+
+onMounted(() => {
+  cart.loadCatalog().catch(() => {})
+})
 </script>
 
 <template>

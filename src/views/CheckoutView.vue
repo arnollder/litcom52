@@ -33,7 +33,13 @@ async function submit() {
   const token = groupToken.value.trim()
   const orderSnapshot = {
     createdAt: new Date().toISOString(),
-    items: cart.lines.map((line) => ({ ...line })),
+    items: cart.lines.map((line) => ({
+      id: line.id,
+      name: line.name,
+      price: line.price,
+      qty: line.qty,
+      type: line.type || '',
+    })),
     total: cart.total,
   }
 

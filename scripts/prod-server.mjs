@@ -2,6 +2,8 @@
 
 import { createServer } from 'node:http'
 import { createReadStream } from 'node:fs'
+import { createGzip } from 'node:zlib'
+import { pipeline } from 'node:stream/promises'
 import { stat } from 'node:fs/promises'
 import { extname, join, normalize, resolve, sep } from 'node:path'
 import { startAdminPushPoller } from './lib/admin-push-poller.mjs'
@@ -35,6 +37,18 @@ const NO_CACHE_FILES = new Set([
   '/sw.js',
   '/manifest.webmanifest',
   '/manifest-admin.webmanifest',
+  '/catalog.json',
+])
+
+const COMPRESSIBLE = new Set([
+  '.html',
+  '.js',
+  '.css',
+  '.json',
+  '.svg',
+  '.txt',
+  '.webmanifest',
+  '.map',
 ])
 
 function safeDistPath(pathname) {
@@ -44,16 +58,33 @@ function safeDistPath(pathname) {
   return full
 }
 
-async function sendFile(res, filePath, pathname = '') {
-  const type = MIME[extname(filePath).toLowerCase()] || 'application/octet-stream'
+function wantsGzip(req) {
+  return String(req.headers['accept-encoding'] || '')
+    .toLowerCase()
+    .split(',')
+    .some((part) => part.trim().startsWith('gzip'))
+}
+
+async function sendFile(req, res, filePath, pathname = '') {
+  const ext = extname(filePath).toLowerCase()
+  const type = MIME[ext] || 'application/octet-stream'
   res.statusCode = 200
   res.setHeader('Content-Type', type)
-  if (extname(filePath) === '.html' || NO_CACHE_FILES.has(pathname)) {
+  if (ext === '.html' || NO_CACHE_FILES.has(pathname)) {
     res.setHeader('Cache-Control', 'no-cache')
   } else {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
   }
-  createReadStream(filePath).pipe(res)
+
+  const useGzip = wantsGzip(req) && COMPRESSIBLE.has(ext)
+  if (useGzip) {
+    res.setHeader('Content-Encoding', 'gzip')
+    res.setHeader('Vary', 'Accept-Encoding')
+    await pipeline(createReadStream(filePath), createGzip(), res)
+    return
+  }
+
+  await pipeline(createReadStream(filePath), res)
 }
 
 async function handleStatic(req, res, pathname) {
@@ -68,7 +99,7 @@ async function handleStatic(req, res, pathname) {
     try {
       const info = await stat(candidate)
       if (info.isFile()) {
-        await sendFile(res, candidate, pathname)
+        await sendFile(req, res, candidate, pathname)
         return
       }
     } catch {
@@ -79,7 +110,7 @@ async function handleStatic(req, res, pathname) {
   const indexPath = join(DIST_DIR, 'index.html')
   try {
     await stat(indexPath)
-    await sendFile(res, indexPath)
+    await sendFile(req, res, indexPath)
   } catch {
     sendJson(res, 500, { error: 'dist/index.html not found. Run npm run build first.' })
   }
@@ -97,7 +128,11 @@ const server = createServer(async (req, res) => {
     await handleStatic(req, res, pathname)
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Internal error'
-    sendJson(res, 500, { ok: false, error: message })
+    if (!res.headersSent) {
+      sendJson(res, 500, { ok: false, error: message })
+    } else {
+      res.destroy(error instanceof Error ? error : undefined)
+    }
   }
 })
 

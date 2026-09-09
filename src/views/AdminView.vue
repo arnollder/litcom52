@@ -15,7 +15,7 @@ import PushToggle from '../components/PushToggle.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { syncAppBadge, useAdminPush } from '../composables/useAdminPush.js'
 
-const POLL_MS = 15_000
+const POLL_MS = 45_000
 
 const tokenInput = ref('')
 const isAuthed = ref(Boolean(getAdminToken()))
@@ -179,13 +179,26 @@ const statusLabel = {
 function startPolling() {
   stopPolling()
   if (activeSection.value !== 'orders') return
-  pollTimer = window.setInterval(() => loadOrders({ silent: true }), POLL_MS)
+  if (typeof document !== 'undefined' && document.hidden) return
+  pollTimer = window.setInterval(() => {
+    if (typeof document !== 'undefined' && document.hidden) return
+    loadOrders({ silent: true })
+  }, POLL_MS)
 }
 
 function stopPolling() {
   if (pollTimer) {
     window.clearInterval(pollTimer)
     pollTimer = null
+  }
+}
+
+function onVisibilityChange() {
+  if (!isAuthed.value || activeSection.value !== 'orders') return
+  if (document.hidden) stopPolling()
+  else {
+    loadOrders({ silent: true })
+    startPolling()
   }
 }
 
@@ -205,6 +218,9 @@ watch(activeSection, (section) => {
 })
 
 onMounted(() => {
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', onVisibilityChange)
+  }
   if (isAuthed.value) {
     loadOrders()
     if (activeSection.value === 'orders') startPolling()
@@ -212,7 +228,12 @@ onMounted(() => {
   }
 })
 
-onUnmounted(stopPolling)
+onUnmounted(() => {
+  stopPolling()
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('visibilitychange', onVisibilityChange)
+  }
+})
 </script>
 
 <template>

@@ -6,6 +6,7 @@ import { resolve } from 'node:path'
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '..')
 const ENV_PATH = resolve(ROOT_DIR, '.env')
 const OUTPUT_PATH = resolve(ROOT_DIR, 'src/data/catalog.json')
+const PUBLIC_OUTPUT_PATH = resolve(ROOT_DIR, 'public/catalog.json')
 const PAGE_SIZE = 100
 
 function parseEnvLine(line) {
@@ -186,6 +187,7 @@ function buildCatalog(categories, assortment, existingCatalog) {
       name: item.name,
       price: parsePrice(item),
       stock: parseStock(item),
+      type: String(item?.meta?.type || 'product').trim() || 'product',
       code: typeof item.code === 'string' ? item.code.trim() : '',
     })
   }
@@ -225,11 +227,13 @@ async function main() {
   const assortment = await fetchPaged(baseUrl, authHeader, '/entity/assortment', assortmentParams)
 
   const nextCatalog = buildCatalog(categories, assortment, existingCatalog)
-  await writeFile(OUTPUT_PATH, `${JSON.stringify(nextCatalog, null, 2)}\n`, 'utf8')
+  const serialized = `${JSON.stringify(nextCatalog, null, 2)}\n`
+  await writeFile(OUTPUT_PATH, serialized, 'utf8')
+  await writeFile(PUBLIC_OUTPUT_PATH, serialized, 'utf8')
 
   const productCount = nextCatalog.categories.reduce((sum, cat) => sum + cat.products.length, 0)
   console.log(
-    `Catalog synced: ${nextCatalog.categories.length} categories, ${productCount} products -> src/data/catalog.json`,
+    `Catalog synced: ${nextCatalog.categories.length} categories, ${productCount} products -> src/data/catalog.json + public/catalog.json`,
   )
 }
 

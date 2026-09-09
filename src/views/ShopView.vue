@@ -10,9 +10,7 @@ const POLL_MS = 60_000
 const cart = useCartStore()
 const query = ref('')
 const { session: editSession } = useOrderEditSession()
-const openCategories = ref(
-  Object.fromEntries(cart.catalog.categories.map((c) => [c.category, false])),
-)
+const openCategories = ref({})
 const setsOpen = ref(true)
 
 const filtered = computed(() => {
@@ -54,7 +52,7 @@ function formatPrice(price) {
 
 async function refreshStockQuiet() {
   try {
-    await cart.refreshStock()
+    await cart.refreshStock({ silent: true })
   } catch {
     // Keep static catalog fallback; error shown via stockStatus.
   }
@@ -62,14 +60,36 @@ async function refreshStockQuiet() {
 
 let pollTimer = null
 
-onMounted(() => {
+function onVisibilityChange() {
+  if (document.hidden) {
+    if (pollTimer) {
+      window.clearInterval(pollTimer)
+      pollTimer = null
+    }
+    return
+  }
+  refreshStockQuiet()
+  if (!pollTimer) pollTimer = window.setInterval(refreshStockQuiet, POLL_MS)
+}
+
+onMounted(async () => {
   syncOrderEditSession()
+  try {
+    await cart.loadCatalog()
+    openCategories.value = Object.fromEntries(
+      cart.catalog.categories.map((c) => [c.category, false]),
+    )
+  } catch {
+    // catalogStatus surfaces the error
+  }
   refreshStockQuiet()
   pollTimer = window.setInterval(refreshStockQuiet, POLL_MS)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 onUnmounted(() => {
   if (pollTimer) window.clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 

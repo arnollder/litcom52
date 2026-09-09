@@ -36,6 +36,11 @@ chmod 600 ${REMOTE_DIR}/.env
 mkdir -p ${REMOTE_DIR}/data
 # Buyer list and payment secrets must never be public static assets.
 rm -f ${REMOTE_DIR}/public/counterparties.json ${REMOTE_DIR}/dist/counterparties.json
+# Enable nginx gzip for js/css/json when snippet is present.
+if [ -f ${REMOTE_DIR}/deploy/nginx/gzip.conf ]; then
+  ln -sfn ${REMOTE_DIR}/deploy/nginx/gzip.conf /etc/nginx/conf.d/litcom52-gzip.conf
+  nginx -t && systemctl reload nginx || true
+fi
 chown -R litcom:litcom ${REMOTE_DIR}/data
 cd ${REMOTE_DIR}
 sudo -u litcom npm ci
@@ -47,6 +52,7 @@ systemctl is-active litcom52 nginx
 curl -sS -o /dev/null -w 'home:%{http_code}\\n' http://127.0.0.1:4173/
 curl -sS -o /dev/null -w 'health:%{http_code}\\n' http://127.0.0.1:4173/healthz
 curl -sS -o /dev/null -w 'counterparties:%{http_code}\\n' http://127.0.0.1:4173/counterparties.json
+curl -sS -o /dev/null -w 'catalog:%{http_code}\\n' http://127.0.0.1:4173/catalog.json
 "
 
 echo "==> public check"

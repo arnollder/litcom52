@@ -33,6 +33,7 @@ export function useAppendToOrder() {
           name: line.name,
           price: line.price,
           qty: line.qty,
+          type: line.type || '',
         })),
       )
       await updateCustomerOrder(session.value.orderId, {

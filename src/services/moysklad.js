@@ -75,6 +75,25 @@ async function parseJson(response) {
 }
 
 /**
+ * Loads storefront catalog from static JSON (not bundled).
+ */
+export async function fetchCatalog() {
+  const url = new URL(`${import.meta.env.BASE_URL}catalog.json`, window.location.origin)
+  const response = await fetch(url.toString(), {
+    headers: { Accept: 'application/json;charset=utf-8' },
+    cache: 'no-store',
+  })
+  if (!response.ok) {
+    throw new Error(`Не удалось загрузить каталог (${response.status})`)
+  }
+  const payload = await response.json()
+  return {
+    categories: Array.isArray(payload?.categories) ? payload.categories : [],
+    starterSet: payload?.starterSet || [],
+  }
+}
+
+/**
  * Resolves a group by storefront token (server-side mapping).
  * @param {string} token
  */
@@ -129,6 +148,7 @@ export async function reserveOrderInMoySklad(payload) {
         qty: Number(item.qty),
         price: Number(item.price),
         name: item.name,
+        type: item.type || item.assortmentType || '',
       })),
     }),
   })
@@ -146,14 +166,25 @@ export async function reserveOrderInMoySklad(payload) {
   }
 }
 
-export async function fetchLiveStock() {
+export async function fetchLiveStock({ etag = '' } = {}) {
   const response = await fetch(`${getApiBase()}/api/stock`, {
     method: 'GET',
     headers: {
       Accept: 'application/json;charset=utf-8',
+      ...(etag ? { 'If-None-Match': etag } : {}),
     },
     cache: 'no-store',
   })
+
+  if (response.status === 304) {
+    return {
+      notModified: true,
+      etag: response.headers.get('etag') || etag,
+      updatedAt: null,
+      stockById: null,
+      count: 0,
+    }
+  }
 
   const data = await parseJson(response)
 
@@ -162,9 +193,11 @@ export async function fetchLiveStock() {
   }
 
   return {
+    notModified: false,
     updatedAt: data.updatedAt,
     stockById: data.stockById || {},
     count: data.count || 0,
+    etag: response.headers.get('etag') || data.etag || '',
   }
 }
 
@@ -205,6 +238,7 @@ export async function updateCustomerOrder(orderId, { token, items }) {
         qty: Number(item.qty),
         price: Number(item.price),
         name: item.name,
+        type: item.type || item.assortmentType || '',
       })),
     }),
   })

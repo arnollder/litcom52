@@ -126,6 +126,53 @@ export async function listCustomerOrdersForAdmin({ limit = DEFAULT_LIMIT } = {})
 }
 
 /**
+ * Lightweight admin list for push polling — id/status/name only, no positions.
+ */
+export async function listCustomerOrdersForAdminLite({ limit = DEFAULT_LIMIT } = {}) {
+  const cap = Math.min(Math.max(Number(limit) || DEFAULT_LIMIT, 1), 500)
+  const rows = []
+  let offset = 0
+
+  while (rows.length < cap) {
+    const pageLimit = Math.min(PAGE_SIZE, cap - rows.length)
+    const data = await moyskladFetch(
+      `/entity/customerorder?limit=${pageLimit}&offset=${offset}&order=moment,desc&expand=agent,state`,
+    )
+    const chunk = Array.isArray(data?.rows) ? data.rows : []
+    rows.push(...chunk)
+    if (chunk.length < pageLimit) break
+    offset += chunk.length
+  }
+
+  const orders = rows.map((row) => {
+    const stateName = row?.state?.name || null
+    const mappedStatus = mapMoySkladStateToStatus(stateName)
+    const status = mappedStatus || 'new'
+    return {
+      id: row.id,
+      status,
+      customer: {
+        counterparty: {
+          id: row?.agent?.id || null,
+          name: row?.agent?.name || 'Контрагент не указан',
+        },
+      },
+      moySklad: {
+        id: row.id,
+        name: row.name,
+        stateName,
+      },
+    }
+  })
+
+  return {
+    orders,
+    count: orders.length,
+    newCount: orders.filter((order) => order.status === 'new').length,
+  }
+}
+
+/**
  * Customer-facing order shape (history + optional edit).
  */
 export async function mapCustomerOrderToCustomer(row, { positions } = {}) {

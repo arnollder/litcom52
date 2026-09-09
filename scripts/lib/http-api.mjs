@@ -222,7 +222,19 @@ export async function handleStock(req, res) {
   try {
     await loadEnvFromFile()
     const result = await fetchLiveStockMap()
-    sendJson(res, 200, { ok: true, ...result })
+    const etag = result.etag || ''
+    const clientEtag = String(req.headers['if-none-match'] || '').trim()
+    if (etag && clientEtag && clientEtag === etag) {
+      res.statusCode = 304
+      res.setHeader('ETag', etag)
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('Access-Control-Allow-Origin', '*')
+      res.end()
+      return
+    }
+    if (etag) res.setHeader('ETag', etag)
+    const { etag: _etag, cached: _cached, ...payload } = result
+    sendJson(res, 200, { ok: true, ...payload })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Stock fetch failed'
     sendJson(res, mapErrorStatus(error), { ok: false, error: message })

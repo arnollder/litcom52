@@ -4,6 +4,11 @@ import { getBaseUrl, moyskladFetch } from './moysklad-env.mjs'
 import { buildCustomerOrderStatePayload } from './customer-order-state.mjs'
 import { buildStorefrontOrderComment } from './storefront-order-comment.mjs'
 
+const ASSORTMENT_TYPES = new Set(['product', 'variant', 'bundle', 'service'])
+
+/** @type {Map<string, string>} */
+const assortmentTypeCache = new Map()
+
 function meta(type, id, baseUrl) {
   return {
     href: `${baseUrl}/entity/${type}/${id}`,
@@ -24,7 +29,21 @@ async function resolveOrganizationId(baseUrl) {
   return first.id
 }
 
-async function resolveAssortmentType(id) {
+function normalizeAssortmentType(raw) {
+  const type = String(raw || '').trim().toLowerCase()
+  return ASSORTMENT_TYPES.has(type) ? type : ''
+}
+
+async function resolveAssortmentType(id, hintedType = '') {
+  const cached = assortmentTypeCache.get(id)
+  if (cached) return cached
+
+  const hint = normalizeAssortmentType(hintedType)
+  if (hint) {
+    assortmentTypeCache.set(id, hint)
+    return hint
+  }
+
   // Catalog sync pulls from assortment; literature items are almost always products.
   const candidates = ['product', 'variant', 'bundle', 'service']
   let lastError = null
@@ -32,6 +51,7 @@ async function resolveAssortmentType(id) {
   for (const type of candidates) {
     try {
       await moyskladFetch(`/entity/${type}/${id}`)
+      assortmentTypeCache.set(id, type)
       return type
     } catch (error) {
       lastError = error
@@ -57,7 +77,7 @@ export async function buildReservedPositions(items) {
       throw new Error(`Некорректная позиция заказа: ${item.name || id}`)
     }
 
-    const type = await resolveAssortmentType(id)
+    const type = await resolveAssortmentType(id, item.type || item.assortmentType)
     const price = Number(item.price)
     positions.push({
       quantity: qty,
@@ -74,7 +94,7 @@ export async function buildReservedPositions(items) {
 
 /**
  * Creates a MoySklad customer order and reserves each line.
- * @param {{ counterpartyId: string, counterpartyName?: string, items: Array<{ id: string, qty: number, price?: number, name?: string }>, comment?: string }} order
+ * @param {{ counterpartyId: string, counterpartyName?: string, items: Array<{ id: string, qty: number, price?: number, name?: string, type?: string }>, comment?: string }} order
  */
 export async function createReservedCustomerOrder(order) {
   const counterpartyId = String(order?.counterpartyId || '').trim()

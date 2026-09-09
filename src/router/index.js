@@ -1,42 +1,52 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../views/HomeView.vue'
-import ShopView from '../views/ShopView.vue'
-import CheckoutView from '../views/CheckoutView.vue'
-import OrdersView from '../views/OrdersView.vue'
-import AdminView from '../views/AdminView.vue'
 import { adminOrigin, isAdminHost, isStoreHost } from '../utils/hosts'
 import { readOrderEditSession } from '../utils/order-edit-session.js'
 
 const adminMeta = { title: 'Админка М52', hideChrome: true }
 
 const adminHostRoutes = [
-  { path: '/', name: 'admin', component: AdminView, meta: adminMeta },
+  {
+    path: '/',
+    name: 'admin',
+    component: () => import('../views/AdminView.vue'),
+    meta: adminMeta,
+  },
   { path: '/admin', redirect: '/' },
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
 const storeHostRoutes = [
-  { path: '/', name: 'home', component: HomeView, meta: { title: 'Литком-М52' } },
+  {
+    path: '/',
+    name: 'home',
+    component: () => import('../views/HomeView.vue'),
+    meta: { title: 'Литком-М52' },
+  },
   {
     path: '/shop',
     name: 'shop',
-    component: ShopView,
+    component: () => import('../views/ShopView.vue'),
     meta: { title: 'Каталог — Литком-М52' },
   },
   {
     path: '/checkout',
     name: 'checkout',
-    component: CheckoutView,
+    component: () => import('../views/CheckoutView.vue'),
     meta: { title: 'Оформление — Литком-М52' },
   },
   {
     path: '/orders',
     name: 'orders',
-    component: OrdersView,
+    component: () => import('../views/OrdersView.vue'),
     meta: { title: 'Мои заказы — Литком-М52' },
   },
   // Local/dev: keep /admin. Production store host redirects away in beforeEach.
-  { path: '/admin', name: 'admin', component: AdminView, meta: adminMeta },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: () => import('../views/AdminView.vue'),
+    meta: adminMeta,
+  },
 ]
 
 const router = createRouter({

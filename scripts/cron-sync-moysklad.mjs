@@ -2,16 +2,16 @@
 
 /**
  * Cron-friendly MoySklad sync:
- * 1) catalog.json + data/counterparties.json
- * 2) optional frontend rebuild so catalog.json lands in dist/
- * 3) optional frontend rebuild so catalog (bundled) goes live
+ * 1) src/data/catalog.json + public/catalog.json + data/counterparties.json
+ * 2) copy catalog into dist/ when present (no full Vite rebuild by default)
+ * 3) optional full rebuild via CRON_SYNC_REBUILD=1
  *
  * Env:
- *   CRON_SYNC_REBUILD=1|0   default 1 — run `npm run build` after sync
+ *   CRON_SYNC_REBUILD=1|0   default 0 — catalog is served as static JSON
  *   CRON_SYNC_LOCK_PATH     default <root>/data/sync.lock
  */
 
-import { mkdir, open, readFile, unlink } from 'node:fs/promises'
+import { copyFile, mkdir, open, readFile, unlink } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,8 +19,8 @@ import { fileURLToPath } from 'node:url'
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const LOCK_PATH =
   process.env.CRON_SYNC_LOCK_PATH || resolve(ROOT_DIR, 'data/sync.lock')
-const REBUILD = !['0', 'false', 'no'].includes(
-  String(process.env.CRON_SYNC_REBUILD ?? '1').toLowerCase(),
+const REBUILD = ['1', 'true', 'yes'].includes(
+  String(process.env.CRON_SYNC_REBUILD ?? '0').toLowerCase(),
 )
 
 function stamp() {
@@ -81,6 +81,17 @@ async function releaseLock() {
   }
 }
 
+async function publishCatalogToDist() {
+  const from = resolve(ROOT_DIR, 'public/catalog.json')
+  const to = resolve(ROOT_DIR, 'dist/catalog.json')
+  try {
+    await copyFile(from, to)
+    log('Published public/catalog.json → dist/catalog.json')
+  } catch (error) {
+    log(`Skip dist catalog publish: ${error instanceof Error ? error.message : error}`)
+  }
+}
+
 async function main() {
   log('MoySklad cron sync started')
   await acquireLock()
@@ -88,13 +99,14 @@ async function main() {
   try {
     await run('node', ['./scripts/sync-moysklad-catalog.mjs'])
     await run('node', ['./scripts/sync-moysklad-counterparties.mjs'])
+    await publishCatalogToDist()
 
     if (REBUILD) {
-      log('Rebuilding frontend so catalog.json lands in dist/')
+      log('Rebuilding frontend (CRON_SYNC_REBUILD=1)')
       await run('npm', ['run', 'build'])
       log('Rebuild finished')
     } else {
-      log('Skip rebuild (CRON_SYNC_REBUILD=0); catalog changes need a later build')
+      log('Skip full rebuild (catalog is static JSON under public/ + dist/)')
     }
 
     log('MoySklad cron sync finished OK')

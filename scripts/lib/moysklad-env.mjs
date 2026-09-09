@@ -6,6 +6,9 @@ import { resolve } from 'node:path'
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '../..')
 const ENV_PATH = resolve(ROOT_DIR, '.env')
 
+/** Loaded once per process — hot paths must not re-read disk. */
+let envLoaded = false
+
 export function parseEnvLine(line) {
   const trimmed = line.trim()
   if (!trimmed || trimmed.startsWith('#')) return null
@@ -19,7 +22,8 @@ export function parseEnvLine(line) {
   return [key, value]
 }
 
-export async function loadEnvFromFile() {
+export async function loadEnvFromFile({ force = false } = {}) {
+  if (envLoaded && !force) return
   try {
     const raw = await readFile(ENV_PATH, 'utf8')
     for (const line of raw.split('\n')) {
@@ -28,8 +32,10 @@ export async function loadEnvFromFile() {
       const [key, value] = entry
       if (!(key in process.env)) process.env[key] = value
     }
+    envLoaded = true
   } catch {
     // .env is optional when env vars are already injected.
+    envLoaded = true
   }
 }
 
