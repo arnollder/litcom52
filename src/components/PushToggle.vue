@@ -98,16 +98,52 @@ onMounted(() => {
       @click="toggle"
     >
       <span class="push-toggle__icon-wrap" aria-hidden="true">
-        <svg v-if="isOn" class="push-toggle__icon" viewBox="0 0 24 24">
+        <svg
+          v-if="isOn"
+          class="push-toggle__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
           <path
-            fill="currentColor"
-            d="M12 22a2.2 2.2 0 0 0 2.2-2.2H9.8A2.2 2.2 0 0 0 12 22Zm6.3-5.8V11a6.3 6.3 0 1 0-12.6 0v5.2L4.4 18v1.2h15.2V18l-1.3-1.8ZM12 2.8a4.9 4.9 0 0 1 4.9 4.9v5.6l.9 1.2H6.2l.9-1.2V7.7A4.9 4.9 0 0 1 12 2.8Z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M6.2 10.2a5.8 5.8 0 0 1 11.6 0c0 3.4.9 5 1.7 6.1H4.5c.8-1.1 1.7-2.7 1.7-6.1Z"
+          />
+          <path
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10.2 18.6a1.9 1.9 0 0 0 3.6 0"
           />
         </svg>
-        <svg v-else class="push-toggle__icon" viewBox="0 0 24 24">
+        <svg
+          v-else
+          class="push-toggle__icon"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
           <path
-            fill="currentColor"
-            d="M5.64 4.22 4.22 5.64l2.1 2.1C5.1 8.84 4.4 9.86 4.4 11v5.2L3.1 17.4V18h2.1l1.3-1.8V11c0-.62.2-1.2.54-1.68l1.7 1.7V11a4.9 4.9 0 0 1 4.2-4.84l1.46 1.46A6.25 6.25 0 0 0 12 5.2c-1.2 0-2.3.35-3.24.96l1.42 1.42A4.85 4.85 0 0 1 12 7.7c2.5 0 4.5 2.02 4.5 4.5v5.6l.7.96H8.74l1.28 1.28H18.4l1.3 1.8h2.1v-.6l-1.3-1.8V11c0-1.14-.7-2.16-1.74-2.68l1.42-1.42c1.02.78 1.72 1.98 1.82 3.36l1.68-1.68c-.28-1.48-1.14-2.74-2.34-3.54l1.42-1.42ZM9.8 19.8h4.4a2.2 2.2 0 0 1-4.4 0Z"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M6.2 10.2a5.8 5.8 0 0 1 11.6 0c0 3.4.9 5 1.7 6.1H4.5c.8-1.1 1.7-2.7 1.7-6.1Z"
+          />
+          <path
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M10.2 18.6a1.9 1.9 0 0 0 3.6 0"
+          />
+          <path
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            d="M4.2 4.2 19.8 19.8"
           />
         </svg>
       </span>
