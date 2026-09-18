@@ -119,6 +119,61 @@ html {
   scroll-behavior: smooth;
 }
 
+/* polygon-gradient theme wipe — same as smetapp (theme-toggle-effect) */
+:root {
+  --theme-transition-duration: 1.5s;
+  --theme-transition-easing: linear(
+    0 0%,
+    0.1684 2.66%,
+    0.3165 5.49%,
+    0.446 8.52%,
+    0.5581 11.78%,
+    0.6535 15.29%,
+    0.7341 19.11%,
+    0.8011 23.3%,
+    0.8557 27.93%,
+    0.8962 32.68%,
+    0.9283 38.01%,
+    0.9529 44.08%,
+    0.9711 51.14%,
+    0.9833 59.06%,
+    0.9915 68.74%,
+    1 100%
+  );
+}
+
+::view-transition-group(root) {
+  animation-timing-function: var(--theme-transition-easing);
+}
+
+::view-transition-new(root) {
+  mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><path d="M0 0H40L0 40V0Z" fill="url(%23theme-transition-gradient)"/><defs><linearGradient id="theme-transition-gradient" x1="0" y1="0" x2="20.5" y2="20.5" gradientUnits="userSpaceOnUse"><stop stop-color="white"/><stop offset="0.845" stop-color="white" stop-opacity="0.99"/><stop offset="0.9506" stop-color="white" stop-opacity="0"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient></defs></svg>')
+    top left / 0 no-repeat;
+  animation: theme-transition-scale var(--theme-transition-duration);
+  animation-fill-mode: both;
+}
+
+::view-transition-old(root) {
+  animation: theme-transition-scale var(--theme-transition-duration);
+  animation-fill-mode: both;
+  z-index: -1;
+  transform-origin: top left;
+}
+
+@keyframes theme-transition-scale {
+  to {
+    mask-size: 200vmax;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(root),
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -131,7 +186,6 @@ body {
   background-attachment: fixed;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  transition: color 0.2s ease, background 0.25s ease;
 }
 
 a {

@@ -12,23 +12,25 @@ const theme = useThemeStore()
     :title="theme.label"
     @click="theme.toggle()"
   >
-    <svg
-      v-if="theme.isLight"
-      class="theme-btn__icon"
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-    >
-      <path
-        fill="currentColor"
-        d="M12.1 22a1 1 0 0 1-.95-.68A9.5 9.5 0 0 1 12.5 2.1a1 1 0 0 1 1.22 1.3A7.5 7.5 0 0 0 14.4 19.9a1 1 0 0 1-.9 1.3 9 9 0 0 1-1.4.8Z"
-      />
-    </svg>
-    <svg v-else class="theme-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        fill="currentColor"
-        d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-14a1 1 0 0 0 1-1V2a1 1 0 1 0-2 0v1a1 1 0 0 0 1 1Zm0 16a1 1 0 0 0-1 1v1a1 1 0 1 0 2 0v-1a1 1 0 0 0-1-1Zm10-7h-1a1 1 0 1 0 0 2h1a1 1 0 1 0 0-2ZM3 12H2a1 1 0 1 0 0 2h1a1 1 0 1 0 0-2Zm14.95 5.54-.7-.7a1 1 0 0 0-1.42 1.42l.7.7a1 1 0 0 0 1.42-1.42ZM7.46 5.05l-.7-.7A1 1 0 0 0 5.34 5.77l.7.7a1 1 0 0 0 1.42-1.42Zm10.09-1.28-.7.7a1 1 0 1 0 1.42 1.42l.7-.7a1 1 0 0 0-1.42-1.42ZM5.76 16.84l-.7.7a1 1 0 1 0 1.42 1.42l.7-.7a1 1 0 0 0-1.42-1.42Z"
-      />
-    </svg>
+    <span class="theme-btn__swap" :key="theme.theme">
+      <svg
+        v-if="theme.isLight"
+        class="theme-btn__icon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          fill="currentColor"
+          d="M12.1 22a1 1 0 0 1-.95-.68A9.5 9.5 0 0 1 12.5 2.1a1 1 0 0 1 1.22 1.3A7.5 7.5 0 0 0 14.4 19.9a1 1 0 0 1-.9 1.3 9 9 0 0 1-1.4.8Z"
+        />
+      </svg>
+      <svg v-else class="theme-btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12Zm0-14a1 1 0 0 0 1-1V2a1 1 0 1 0-2 0v1a1 1 0 0 0 1 1Zm0 16a1 1 0 0 0-1 1v1a1 1 0 1 0 2 0v-1a1 1 0 0 0-1-1Zm10-7h-1a1 1 0 1 0 0 2h1a1 1 0 1 0 0-2ZM3 12H2a1 1 0 1 0 0 2h1a1 1 0 1 0 0-2Zm14.95 5.54-.7-.7a1 1 0 0 0-1.42 1.42l.7.7a1 1 0 0 0 1.42-1.42ZM7.46 5.05l-.7-.7A1 1 0 0 0 5.34 5.77l.7.7a1 1 0 0 0 1.42-1.42Zm10.09-1.28-.7.7a1 1 0 1 0 1.42 1.42l.7-.7a1 1 0 0 0-1.42-1.42ZM5.76 16.84l-.7.7a1 1 0 1 0 1.42 1.42l.7-.7a1 1 0 0 0-1.42-1.42Z"
+        />
+      </svg>
+    </span>
   </button>
 </template>
 
@@ -44,10 +46,12 @@ const theme = useThemeStore()
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  overflow: hidden;
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
-    color 0.2s ease;
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .theme-btn:hover {
@@ -55,8 +59,42 @@ const theme = useThemeStore()
   border-color: var(--btn-ghost-hover);
 }
 
+.theme-btn:active {
+  transform: scale(0.94);
+}
+
+.theme-btn__swap {
+  display: grid;
+  place-items: center;
+  animation: theme-icon-in 0.35s ease;
+}
+
 .theme-btn__icon {
   width: 1.15rem;
   height: 1.15rem;
+}
+
+@keyframes theme-icon-in {
+  from {
+    opacity: 0;
+    transform: rotate(-40deg) scale(0.7);
+  }
+
+  to {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-btn,
+  .theme-btn__swap {
+    animation: none;
+    transition: none;
+  }
+
+  .theme-btn:active {
+    transform: none;
+  }
 }
 </style>
