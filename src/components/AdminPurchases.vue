@@ -90,7 +90,7 @@ watch([allChecked, someChecked, selectedId], async () => {
 
 function formatMoney(value) {
   if (!Number.isFinite(Number(value))) return '—'
-  return `${Number(value).toLocaleString('ru-RU')} ₽`
+  return `${Number(value).toLocaleString('ru-RU')}\u00a0₽`
 }
 
 function formatDate(value) {
@@ -884,7 +884,7 @@ onMounted(loadList)
                 </td>
                 <td>№{{ item.invoiceNumber || '—' }}</td>
                 <td>{{ item.lines?.length || 0 }}</td>
-                <td>{{ formatMoney(item.total) }}</td>
+                <td class="mail-hits__sum">{{ formatMoney(item.total) }}</td>
               </tr>
             </tbody>
           </table>
@@ -2131,6 +2131,11 @@ onMounted(loadList)
 .mail-hits__row--busy {
   opacity: 0.55;
   cursor: wait;
+}
+
+.mail-hits__sum {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .upload__icon {
