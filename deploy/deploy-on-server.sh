@@ -45,6 +45,12 @@ chmod 600 "$DEST_DIR/.env"
 mkdir -p "$DEST_DIR/data"
 chown -R litcom:litcom "$DEST_DIR/data"
 
+# pdftotext for invoice PDF parse (admin purchases / IMAP)
+if ! command -v pdftotext >/dev/null 2>&1; then
+  echo "==> install poppler-utils (pdftotext)"
+  DEBIAN_FRONTEND=noninteractive apt-get install -y -qq poppler-utils
+fi
+
 echo "==> npm ci + build"
 cd "$DEST_DIR"
 sudo -u litcom npm ci
