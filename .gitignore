@@ -15,6 +15,9 @@ dist-ssr
 .env.*
 !.env.example
 data/orders.json
+data/purchases.json
+data/mail-counterparties.json
+data/mail-inbox.json
 data/push-subscriptions.json
 data/push-poller-state.json
 .tools/

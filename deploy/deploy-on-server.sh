@@ -30,6 +30,9 @@ rsync -a --delete \
   --exclude .env \
   --exclude .env.\* \
   --exclude data/orders.json \
+  --exclude data/purchases.json \
+  --exclude data/mail-counterparties.json \
+  --exclude data/mail-inbox.json \
   --exclude data/push-subscriptions.json \
   --exclude data/push-poller-state.json \
   --exclude data/sync.lock \

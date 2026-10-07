@@ -9,6 +9,7 @@ import {
   updateAdminOrderStatus,
 } from '../services/moysklad'
 import AdminOrders from '../components/AdminOrders.vue'
+import AdminPurchases from '../components/AdminPurchases.vue'
 import AdminReports from '../components/AdminReports.vue'
 import InstallAppButton from '../components/InstallAppButton.vue'
 import PushToggle from '../components/PushToggle.vue'
@@ -39,10 +40,21 @@ const {
   syncSubscription: syncPushSubscription,
 } = useAdminPush()
 
+const SECTIONS = [
+  { key: 'orders', label: 'Заказы' },
+  { key: 'purchases', label: 'Закупки' },
+  { key: 'reports', label: 'Отчёты' },
+]
+
 const filteredOrders = computed(() => {
   if (filter.value === 'all') return orders.value
   return orders.value.filter((order) => order.status === filter.value)
 })
+
+function setSection(section) {
+  if (activeSection.value === section) return
+  activeSection.value = section
+}
 
 function formatDate(value) {
   if (!value) return '—'
@@ -242,25 +254,7 @@ onUnmounted(() => {
       <div>
         <p class="eyebrow">Литком-М52</p>
         <h1 class="display">Админка М52</h1>
-        <p class="muted">Список соответствует разделу «Заказы покупателей» в МойСклад.</p>
-        <div v-if="isAuthed" class="head-tabs">
-          <button
-            type="button"
-            class="head-tab"
-            :class="{ 'head-tab--active': activeSection === 'orders' }"
-            @click="activeSection = 'orders'"
-          >
-            Заказы
-          </button>
-          <button
-            type="button"
-            class="head-tab"
-            :class="{ 'head-tab--active': activeSection === 'reports' }"
-            @click="activeSection = 'reports'"
-          >
-            Отчеты
-          </button>
-        </div>
+        <p v-if="!isAuthed" class="muted">Токен из переменной ADMIN_TOKEN на сервере.</p>
       </div>
       <div class="admin__aside">
         <template v-if="isAuthed">
@@ -271,6 +265,7 @@ onUnmounted(() => {
             <InstallAppButton variant="header" label="Установить админку" />
             <PushToggle audience="admin" />
             <ThemeToggle />
+            <button class="admin-logout" type="button" @click="logout">Выйти</button>
           </div>
           <span class="muted sync">
             {{ lastSyncedAt ? `Обновлено ${formatDate(lastSyncedAt)}` : 'Ожидание…' }}
@@ -282,6 +277,27 @@ onUnmounted(() => {
         </div>
       </div>
     </header>
+
+    <div
+      v-if="isAuthed"
+      class="admin-tabs"
+      role="tablist"
+      aria-label="Разделы админки"
+    >
+      <button
+        v-for="tab in SECTIONS"
+        :key="tab.key"
+        type="button"
+        role="tab"
+        class="admin-tabs__tab"
+        :class="{ 'admin-tabs__tab--active': activeSection === tab.key }"
+        :aria-selected="activeSection === tab.key"
+        :tabindex="activeSection === tab.key ? 0 : -1"
+        @click="setSection(tab.key)"
+      >
+        {{ tab.label }}
+      </button>
+    </div>
 
     <section v-if="!isAuthed" class="panel login reveal">
       <h2>Вход</h2>
@@ -296,7 +312,7 @@ onUnmounted(() => {
       <p v-if="error" class="error">{{ error }}</p>
     </section>
 
-    <template v-else>
+    <div v-else class="admin-panels" role="tabpanel">
       <AdminOrders
         v-if="activeSection === 'orders'"
         :filtered-orders="filteredOrders"
@@ -310,11 +326,11 @@ onUnmounted(() => {
         @set-filter="filter = $event"
         @toggle-sound="soundEnabled = $event"
         @refresh="loadOrders()"
-        @logout="logout"
         @set-status="setStatus"
       />
-      <AdminReports v-else />
-    </template>
+      <AdminPurchases v-else-if="activeSection === 'purchases'" />
+      <AdminReports v-else-if="activeSection === 'reports'" />
+    </div>
   </div>
 </template>
 
@@ -322,6 +338,13 @@ onUnmounted(() => {
 .admin {
   padding: 2rem 0 3rem;
   max-width: 960px;
+}
+
+/* Все кнопки админки — угловатый стиль (не пилюли). */
+.admin :deep(.btn),
+.admin :deep(.chip),
+.admin :deep(.btn-block) {
+  border-radius: 12px;
 }
 
 .admin__head {
@@ -346,26 +369,55 @@ onUnmounted(() => {
   font-size: clamp(1.7rem, 4vw, 2.4rem);
 }
 
-.head-tabs {
-  margin-top: 0.9rem;
-  display: inline-flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+.admin-tabs {
+  display: flex;
+  width: 100%;
+  margin: 0 0 1.25rem;
+  box-shadow: inset 0 -1px 0 var(--line);
 }
 
-.head-tab {
-  border: 1px solid var(--line);
+.admin-tabs__tab {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.9rem 0.5rem;
+  border: 0;
   background: transparent;
   color: var(--ink-muted);
-  border-radius: 999px;
-  padding: 0.45rem 0.8rem;
+  text-align: center;
+  white-space: nowrap;
   cursor: pointer;
+  font: inherit;
+  font-size: 1.08rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
 }
 
-.head-tab--active {
+.admin-tabs__tab::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.admin-tabs__tab:hover {
   color: var(--ink);
-  background: var(--accent-fill);
-  border-color: var(--accent-border);
+}
+
+.admin-tabs__tab--active {
+  color: var(--ink);
+}
+
+.admin-tabs__tab--active::after {
+  background: var(--green);
+}
+
+.admin-panels {
+  min-width: 0;
 }
 
 .admin__aside {
@@ -380,15 +432,43 @@ onUnmounted(() => {
   gap: 0.55rem;
 }
 
+.admin-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--green);
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.admin-logout:hover {
+  background: var(--nav-hover);
+  border-color: var(--btn-ghost-hover);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
   padding: 0.35rem 0.7rem;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: var(--surface);
   font-size: 0.85rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge--hot {

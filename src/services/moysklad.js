@@ -291,6 +291,321 @@ export async function updateAdminOrderStatus(id, status) {
   return data.order
 }
 
+export async function fetchAdminPurchases() {
+  const response = await fetch(`${getApiBase()}/api/admin/purchases`, {
+    method: 'GET',
+    headers: adminHeaders(),
+    cache: 'no-store',
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось загрузить закупки (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return {
+    purchases: Array.isArray(data.purchases) ? data.purchases : [],
+    count: data.count || 0,
+  }
+}
+
+export async function fetchAdminPurchase(id) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/${encodeURIComponent(id)}`,
+    {
+      method: 'GET',
+      headers: adminHeaders(),
+      cache: 'no-store',
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось загрузить закупку (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  if (!data.purchase?.id) {
+    const error = new Error('Сервер не вернул закупку')
+    error.status = 502
+    throw error
+  }
+  return data.purchase
+}
+
+export async function fetchAdminPurchaseHistory() {
+  const response = await fetch(`${getApiBase()}/api/admin/purchases/history`, {
+    method: 'GET',
+    headers: adminHeaders(),
+    cache: 'no-store',
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось загрузить историю МС (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return {
+    orders: Array.isArray(data.orders) ? data.orders : [],
+    count: data.count || 0,
+    href: data.href || 'https://online.moysklad.ru/app/#purchaseorder',
+  }
+}
+
+export async function fetchAdminPurchaseHistoryOrder(id) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/history/${encodeURIComponent(id)}`,
+    {
+      method: 'GET',
+      headers: adminHeaders(),
+      cache: 'no-store',
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось открыть накладную (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.order
+}
+
+export async function fetchAdminPurchaseMailInbox() {
+  const response = await fetch(`${getApiBase()}/api/admin/purchases/mail-inbox`, {
+    method: 'GET',
+    headers: adminHeaders(),
+    cache: 'no-store',
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось загрузить почтовый кэш (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return {
+    messages: Array.isArray(data.messages) ? data.messages : [],
+    count: data.count || 0,
+    source: data.source || 'cache',
+  }
+}
+
+export async function checkAdminPurchaseMail() {
+  const response = await fetch(`${getApiBase()}/api/admin/purchases/check-mail`, {
+    method: 'POST',
+    headers: adminHeaders(),
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось проверить почту (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return {
+    messages: Array.isArray(data.messages) ? data.messages : [],
+    count: data.count || 0,
+    added: data.added || 0,
+    scanned: data.scanned || 0,
+    matched: data.matched || 0,
+    skippedKnown: data.skippedKnown || 0,
+    fromFilters: Array.isArray(data.fromFilters) ? data.fromFilters : [],
+    source: data.source || 'sync',
+  }
+}
+
+export async function fetchAdminMailCounterparties() {
+  const response = await fetch(`${getApiBase()}/api/admin/purchases/counterparties`, {
+    headers: adminHeaders(),
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось загрузить контрагентов (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return {
+    emails: Array.isArray(data.emails) ? data.emails : [],
+    count: data.count || 0,
+    mailbox: data.mailbox || '',
+  }
+}
+
+export async function addAdminMailCounterparty({ email, name }) {
+  const response = await fetch(`${getApiBase()}/api/admin/purchases/counterparties`, {
+    method: 'POST',
+    headers: {
+      ...adminHeaders(),
+      'Content-Type': 'application/json;charset=utf-8',
+    },
+    body: JSON.stringify({ email, name }),
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось добавить контрагента (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.email
+}
+
+export async function updateAdminMailCounterparty(id, { email, name }) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/counterparties/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      headers: {
+        ...adminHeaders(),
+        'Content-Type': 'application/json;charset=utf-8',
+      },
+      body: JSON.stringify({ email, name }),
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось обновить контрагента (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.email
+}
+
+export async function deleteAdminMailCounterparty(id) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/counterparties/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      headers: adminHeaders(),
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось удалить контрагента (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.email
+}
+
+export async function parseAdminPurchasePdf(file) {
+  const form = new FormData()
+  form.append('pdf', file, file.name || 'invoice.pdf')
+
+  const token = getAdminToken()
+  const response = await fetch(`${getApiBase()}/api/admin/purchases/parse`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json;charset=utf-8',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: form,
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось разобрать PDF (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.parsed
+}
+
+export async function createAdminPurchase(parsed) {
+  const response = await fetch(`${getApiBase()}/api/admin/purchases`, {
+    method: 'POST',
+    headers: adminHeaders(),
+    body: JSON.stringify({ parsed }),
+  })
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось сохранить закупку (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.purchase
+}
+
+export async function createAdminPurchaseOrder(id) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/${encodeURIComponent(id)}/create-order`,
+    {
+      method: 'POST',
+      headers: adminHeaders(),
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось создать заказ поставщику (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  if (!data.purchase?.id) {
+    const error = new Error('Сервер не вернул обновлённую закупку после создания заказа')
+    error.status = 502
+    throw error
+  }
+  if (!data.purchase?.moysklad?.purchaseOrderId) {
+    const error = new Error('Заказ создан в МС, но локальная закупка без purchaseOrderId')
+    error.status = 502
+    throw error
+  }
+  return {
+    purchase: data.purchase,
+    warning: data.warning || '',
+  }
+}
+
+export async function updateAdminPurchaseChecklist(id, lines) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/${encodeURIComponent(id)}/checklist`,
+    {
+      method: 'PATCH',
+      headers: adminHeaders(),
+      body: JSON.stringify({ lines }),
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось обновить чек-лист (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.purchase
+}
+
+export async function acceptAdminPurchase(id) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/${encodeURIComponent(id)}/accept`,
+    {
+      method: 'POST',
+      headers: adminHeaders(),
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось создать приёмку (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return {
+    purchase: data.purchase,
+    warning: data.warning || '',
+  }
+}
+
+export async function deleteAdminPurchase(id) {
+  const response = await fetch(
+    `${getApiBase()}/api/admin/purchases/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+      headers: adminHeaders(),
+    },
+  )
+  const data = await parseJson(response)
+  if (!response.ok || !data?.ok) {
+    const error = new Error(data?.error || `Не удалось удалить закупку (${response.status})`)
+    error.status = response.status
+    throw error
+  }
+  return data.purchase
+}
+
 export async function fetchAdminReports({ fromDate = '', toDate = '' } = {}) {
   const url = new URL(`${getApiBase()}/api/admin/reports`, window.location.origin)
   if (fromDate) url.searchParams.set('fromDate', fromDate)

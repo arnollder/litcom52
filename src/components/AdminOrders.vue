@@ -12,9 +12,34 @@ const props = defineProps({
   statusLabel: { type: Object, required: true },
 })
 
-const emit = defineEmits(['set-filter', 'toggle-sound', 'refresh', 'logout', 'set-status'])
+const emit = defineEmits(['set-filter', 'toggle-sound', 'refresh', 'set-status'])
 
 const pending = ref(null)
+const isRefreshing = ref(false)
+let refreshSpinTimer = null
+
+function onRefreshClick() {
+  if (isRefreshing.value) return
+  isRefreshing.value = true
+  if (refreshSpinTimer) window.clearTimeout(refreshSpinTimer)
+  emit('refresh')
+  refreshSpinTimer = window.setTimeout(() => {
+    // Если загрузка ещё идёт — крутим дальше, отпустим вотчером.
+    if (!props.isLoading) isRefreshing.value = false
+    refreshSpinTimer = null
+  }, 750)
+}
+
+watch(
+  () => props.isLoading,
+  (loading) => {
+    if (!loading && !refreshSpinTimer) isRefreshing.value = false
+  },
+)
+
+onBeforeUnmount(() => {
+  if (refreshSpinTimer) window.clearTimeout(refreshSpinTimer)
+})
 
 const isRevertPending = computed(() => {
   if (!pending.value) return false
@@ -130,40 +155,6 @@ function formatDate(value) {
 <template>
   <div>
     <div class="toolbar">
-      <div class="filters">
-        <button
-          type="button"
-          class="chip"
-          :class="{ 'chip--active': filter === 'all' }"
-          @click="emit('set-filter', 'all')"
-        >
-          Все
-        </button>
-        <button
-          type="button"
-          class="chip"
-          :class="{ 'chip--active': filter === 'new' }"
-          @click="emit('set-filter', 'new')"
-        >
-          Новые
-        </button>
-        <button
-          type="button"
-          class="chip"
-          :class="{ 'chip--active': filter === 'paid' }"
-          @click="emit('set-filter', 'paid')"
-        >
-          Оплаченные
-        </button>
-        <button
-          type="button"
-          class="chip"
-          :class="{ 'chip--active': filter === 'shipped' }"
-          @click="emit('set-filter', 'shipped')"
-        >
-          Отгруженные
-        </button>
-      </div>
       <div class="toolbar__actions">
         <label class="sound">
           <input
@@ -173,11 +164,74 @@ function formatDate(value) {
           />
           Звук
         </label>
-        <button class="btn btn-ghost" type="button" :disabled="isLoading" @click="emit('refresh')">
-          {{ isLoading ? 'Загрузка…' : 'Обновить' }}
+        <button
+          class="icon-refresh"
+          type="button"
+          :disabled="isLoading || isRefreshing"
+          aria-label="Обновить"
+          title="Обновить"
+          @click="onRefreshClick"
+        >
+          <svg
+            class="icon-refresh__svg"
+            :class="{ 'icon-refresh__svg--spin': isRefreshing || isLoading }"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M4.05 11a8 8 0 0 1 14.32-4.36M20 4v5h-5M19.95 13a8 8 0 0 1-14.32 4.36M4 20v-5h5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
         </button>
-        <button class="btn btn-ghost" type="button" @click="emit('logout')">Выйти</button>
       </div>
+    </div>
+
+    <div class="filters" role="tablist" aria-label="Фильтр заказов">
+      <button
+        type="button"
+        role="tab"
+        class="filters__tab"
+        :class="{ 'filters__tab--active': filter === 'all' }"
+        :aria-selected="filter === 'all'"
+        @click="emit('set-filter', 'all')"
+      >
+        Все
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="filters__tab"
+        :class="{ 'filters__tab--active': filter === 'new' }"
+        :aria-selected="filter === 'new'"
+        @click="emit('set-filter', 'new')"
+      >
+        Новые
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="filters__tab"
+        :class="{ 'filters__tab--active': filter === 'paid' }"
+        :aria-selected="filter === 'paid'"
+        @click="emit('set-filter', 'paid')"
+      >
+        Оплаченные
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="filters__tab"
+        :class="{ 'filters__tab--active': filter === 'shipped' }"
+        :aria-selected="filter === 'shipped'"
+        @click="emit('set-filter', 'shipped')"
+      >
+        Отгруженные
+      </button>
     </div>
 
     <p v-if="error" class="error">{{ error }}</p>
@@ -313,13 +367,12 @@ function formatDate(value) {
 
 .toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 1rem;
   flex-wrap: wrap;
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
-.filters,
 .toolbar__actions,
 .order__actions {
   display: flex;
@@ -328,19 +381,51 @@ function formatDate(value) {
   align-items: center;
 }
 
-.chip {
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--ink-muted);
-  border-radius: 999px;
-  padding: 0.45rem 0.8rem;
-  cursor: pointer;
+.filters {
+  display: flex;
+  width: 100%;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
 }
 
-.chip--active {
+.filters__tab {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.75rem 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.filters__tab::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--line);
+  transition: background 0.15s ease;
+}
+
+.filters__tab:hover {
   color: var(--ink);
-  background: var(--accent-fill);
-  border-color: var(--accent-border);
+}
+
+.filters__tab--active {
+  color: var(--ink);
+}
+
+.filters__tab--active::after {
+  background: var(--green);
 }
 
 .sound {
@@ -362,6 +447,54 @@ function formatDate(value) {
 .btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.icon-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--green);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.icon-refresh:hover:not(:disabled) {
+  background: var(--nav-hover);
+  border-color: var(--btn-ghost-hover);
+}
+
+.icon-refresh:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.icon-refresh__svg {
+  width: 1.2rem;
+  height: 1.2rem;
+  transform-origin: center;
+}
+
+.icon-refresh__svg--spin {
+  animation: refresh-spin 0.75s linear infinite;
+  animation-direction: normal;
+}
+
+@keyframes refresh-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .order--new {

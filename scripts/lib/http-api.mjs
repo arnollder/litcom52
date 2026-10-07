@@ -34,6 +34,37 @@ import {
 import { notifyPushForNewOrder, notifyPushForPaidOrder } from './admin-push-poller.mjs'
 import { resolveCounterpartyByToken } from './counterparty-tokens.mjs'
 import { getPaymentDetails } from './payment-details.mjs'
+import { parseInvoicePdf } from './parse-invoice-pdf.mjs'
+import { parseMultipart, readRawBody } from './multipart.mjs'
+import {
+  createPurchase,
+  deletePurchase,
+  getPurchaseById,
+  listPurchases,
+  updatePurchase,
+  updatePurchaseChecklist,
+} from './purchases-store.mjs'
+import {
+  createPurchaseOrderInMoySklad,
+  matchPurchaseLines,
+  payPurchaseOrderInMoySklad,
+} from './create-purchase-order.mjs'
+import { createSupplyFromPurchase } from './create-supply-from-purchase.mjs'
+import {
+  getPurchaseOrderFromMoySklad,
+  listPurchaseOrdersFromMoySklad,
+} from './list-purchase-orders.mjs'
+import { fetchInvoicePdfsFromMail } from './fetch-invoice-mail.mjs'
+import {
+  addMailCounterparty,
+  deleteMailCounterparty,
+  listMailCounterparties,
+  updateMailCounterparty,
+} from './mail-counterparties-store.mjs'
+import {
+  consumeMailInboxItem,
+  listActiveMailInbox,
+} from './mail-inbox-store.mjs'
 
 export function sendJson(res, status, payload) {
   res.statusCode = status
@@ -332,6 +363,352 @@ async function applyAdminStatus(orderId, requestedStatus) {
   throw error
 }
 
+async function readPdfUpload(req) {
+  const contentType = String(req.headers['content-type'] || '')
+  if (contentType.includes('multipart/form-data')) {
+    const raw = await readRawBody(req)
+    const { file } = parseMultipart(raw, contentType)
+    if (!file?.data?.length) {
+      const error = new Error('Загрузите PDF-файл (поле pdf или file)')
+      error.status = 400
+      throw error
+    }
+    return { buffer: file.data, filename: file.filename || 'invoice.pdf' }
+  }
+
+  const body = await readJsonBody(req)
+  const b64 = String(body.pdfBase64 || body.pdf || '').trim()
+  if (!b64) {
+    const error = new Error('Передайте PDF: multipart или pdfBase64')
+    error.status = 400
+    throw error
+  }
+  const cleaned = b64.replace(/^data:application\/pdf;base64,/i, '')
+  return {
+    buffer: Buffer.from(cleaned, 'base64'),
+    filename: String(body.filename || body.sourcePdfName || 'invoice.pdf'),
+  }
+}
+
+export async function handleAdminPurchases(req, res, pathname) {
+  if (req.method === 'OPTIONS') {
+    corsPreflight(res, 'GET, POST, PATCH, DELETE, OPTIONS')
+    return
+  }
+
+  try {
+    await loadEnvFromFile()
+    assertAdmin(req)
+
+    if (pathname === '/api/admin/purchases/parse' && req.method === 'POST') {
+      const { buffer, filename } = await readPdfUpload(req)
+      const parsed = await parseInvoicePdf(buffer, { filename })
+      let lines = parsed.lines
+      try {
+        lines = await matchPurchaseLines(parsed.lines)
+      } catch (err) {
+        console.error('[purchases] match skipped', err)
+      }
+      sendJson(res, 200, { ok: true, parsed: { ...parsed, lines } })
+      return
+    }
+
+    if (pathname === '/api/admin/purchases/mail-inbox' && req.method === 'GET') {
+      const messages = await listActiveMailInbox()
+      sendJson(res, 200, {
+        ok: true,
+        messages,
+        count: messages.length,
+        source: 'cache',
+      })
+      return
+    }
+
+    if (pathname === '/api/admin/purchases/check-mail' && req.method === 'POST') {
+      const result = await fetchInvoicePdfsFromMail()
+      sendJson(res, 200, {
+        ok: true,
+        messages: result.messages,
+        count: result.messages.length,
+        added: result.added,
+        scanned: result.scanned,
+        matched: result.matched,
+        skippedKnown: result.skippedKnown,
+        fromFilters: result.fromFilters,
+        source: 'sync',
+      })
+      return
+    }
+
+    if (pathname === '/api/admin/purchases/counterparties' && req.method === 'GET') {
+      const emails = await listMailCounterparties()
+      const mailbox = String(process.env.MAIL_IMAP_USER || '').trim()
+      sendJson(res, 200, {
+        ok: true,
+        emails,
+        count: emails.length,
+        mailbox: mailbox || null,
+      })
+      return
+    }
+
+    if (pathname === '/api/admin/purchases/counterparties' && req.method === 'POST') {
+      const body = await readJsonBody(req)
+      const item = await addMailCounterparty({
+        email: body?.email,
+        name: body?.name,
+      })
+      sendJson(res, 201, { ok: true, email: item })
+      return
+    }
+
+    const counterpartyById = pathname.match(
+      /^\/api\/admin\/purchases\/counterparties\/([^/]+)$/,
+    )
+    if (counterpartyById && req.method === 'PATCH') {
+      const body = await readJsonBody(req)
+      const updated = await updateMailCounterparty(decodeURIComponent(counterpartyById[1]), {
+        email: body?.email,
+        name: body?.name,
+      })
+      if (!updated) {
+        sendJson(res, 404, { ok: false, error: 'Контрагент не найден' })
+        return
+      }
+      sendJson(res, 200, { ok: true, email: updated })
+      return
+    }
+    if (counterpartyById && req.method === 'DELETE') {
+      const removed = await deleteMailCounterparty(decodeURIComponent(counterpartyById[1]))
+      if (!removed) {
+        sendJson(res, 404, { ok: false, error: 'Контрагент не найден' })
+        return
+      }
+      sendJson(res, 200, { ok: true, email: removed })
+      return
+    }
+
+    if (pathname === '/api/admin/purchases/history' && req.method === 'GET') {
+      const listed = await listPurchaseOrdersFromMoySklad({ limit: 50 })
+      sendJson(res, 200, {
+        ok: true,
+        orders: listed.orders,
+        count: listed.count,
+        source: 'moysklad-purchaseorder',
+        href: 'https://online.moysklad.ru/app/#purchaseorder',
+      })
+      return
+    }
+
+    const historyById = pathname.match(/^\/api\/admin\/purchases\/history\/([^/]+)$/)
+    if (historyById && req.method === 'GET') {
+      const order = await getPurchaseOrderFromMoySklad(historyById[1])
+      sendJson(res, 200, { ok: true, order })
+      return
+    }
+
+    if (pathname === '/api/admin/purchases' && req.method === 'GET') {
+      const purchases = await listPurchases()
+      sendJson(res, 200, { ok: true, purchases, count: purchases.length })
+      return
+    }
+
+    if (pathname === '/api/admin/purchases' && req.method === 'POST') {
+      const body = await readJsonBody(req)
+      const source = body.parsed || body
+      let lines = Array.isArray(source.lines) ? source.lines : []
+      if (lines.length && !lines.some((line) => line.moyskladAssortmentHref)) {
+        try {
+          lines = await matchPurchaseLines(lines)
+        } catch (err) {
+          console.error('[purchases] match on create skipped', err)
+        }
+      }
+      const purchase = await createPurchase({
+        invoiceNumber: source.invoiceNumber,
+        invoiceDate: source.invoiceDate,
+        supplierName: source.supplierName,
+        sourcePdfName: source.sourcePdfName || body.sourcePdfName,
+        parsedAt: source.parsedAt,
+        total: source.total,
+        lines,
+      })
+      const mailInboxId =
+        body.mailInboxId ||
+        source.mailInboxId ||
+        (source.mail?.uid != null && source.id ? source.id : null)
+      if (mailInboxId) {
+        try {
+          await consumeMailInboxItem(String(mailInboxId), purchase.id)
+        } catch (err) {
+          console.error('[purchases] mail inbox consume skipped', err)
+        }
+      }
+      sendJson(res, 200, { ok: true, purchase })
+      return
+    }
+
+    const byId = pathname.match(/^\/api\/admin\/purchases\/([^/]+)$/)
+    if (byId && req.method === 'GET') {
+      const purchase = await getPurchaseById(byId[1])
+      if (!purchase) {
+        sendJson(res, 404, { ok: false, error: 'Закупка не найдена' })
+        return
+      }
+      sendJson(res, 200, { ok: true, purchase })
+      return
+    }
+
+    if (byId && req.method === 'DELETE') {
+      const removed = await deletePurchase(byId[1])
+      if (!removed) {
+        sendJson(res, 404, { ok: false, error: 'Закупка не найдена' })
+        return
+      }
+      sendJson(res, 200, { ok: true, purchase: removed })
+      return
+    }
+
+    const createOrder = pathname.match(/^\/api\/admin\/purchases\/([^/]+)\/create-order$/)
+    if (createOrder && req.method === 'POST') {
+      const purchase = await getPurchaseById(createOrder[1])
+      if (!purchase) {
+        sendJson(res, 404, { ok: false, error: 'Закупка не найдена' })
+        return
+      }
+      try {
+        const created = await createPurchaseOrderInMoySklad(purchase)
+        // Persist ordered state and answer the client BEFORE cashout.
+        // Cashout can hang/timeout — UI must already show «Заказ создан».
+        const updated = await updatePurchase(purchase.id, (current) => ({
+          ...current,
+          lines: created.lines || current.lines,
+          moysklad: {
+            ...current.moysklad,
+            purchaseOrderId: created.id,
+            purchaseOrderName: created.name,
+            purchaseOrderHref: created.href,
+            agentId: created.agentId || current.moysklad?.agentId || null,
+          },
+        }))
+
+        sendJson(res, 200, {
+          ok: true,
+          purchase: updated,
+          created: created.created,
+        })
+
+        // Cashout in background — never blocks UI transition to «Принять товар».
+        if (created.id && Number(created.sumKopecks) > 0) {
+          void (async () => {
+            try {
+              const { moyskladFetch } = await import('./moysklad-env.mjs')
+              const { resolveSupplierAgent } = await import('./create-purchase-order.mjs')
+              let organizationId = created.organizationId
+              let agentId = created.agentId || updated.moysklad?.agentId
+              if (!organizationId) {
+                organizationId = String(process.env.MOYSKLAD_ORGANIZATION_ID || '').trim() || null
+                if (!organizationId) {
+                  const data = await moyskladFetch('/entity/organization?limit=1')
+                  organizationId = data?.rows?.[0]?.id || null
+                }
+              }
+              if (!agentId) {
+                const agent = await resolveSupplierAgent(
+                  updated.supplierName || purchase.supplierName,
+                )
+                agentId = agent.id
+              }
+              if (!organizationId || !agentId) return
+
+              const cashOut = await payPurchaseOrderInMoySklad({
+                purchaseOrderId: created.id,
+                organizationId,
+                agentId,
+                sumKopecks: created.sumKopecks,
+                purpose: purchase.invoiceNumber
+                  ? `Оплата заказа по счёту ${purchase.invoiceNumber}`
+                  : `Оплата заказа поставщику ${created.name || created.id}`,
+              })
+              await updatePurchase(purchase.id, (current) => ({
+                ...current,
+                moysklad: {
+                  ...current.moysklad,
+                  agentId: agentId || current.moysklad?.agentId || null,
+                  cashOutId: cashOut?.id || current.moysklad?.cashOutId || null,
+                  cashOutName: cashOut?.name || current.moysklad?.cashOutName || null,
+                  payedSum: cashOut?.sum ?? current.moysklad?.payedSum ?? null,
+                },
+              }))
+            } catch (error) {
+              console.error('[purchases] cashout after purchaseorder failed', error)
+            }
+          })()
+        }
+        return
+      } catch (error) {
+        if (Array.isArray(error?.lines)) {
+          await updatePurchase(purchase.id, (current) => ({
+            ...current,
+            lines: error.lines,
+          }))
+        }
+        throw error
+      }
+    }
+
+    const checklist = pathname.match(/^\/api\/admin\/purchases\/([^/]+)\/checklist$/)
+    if (checklist && req.method === 'PATCH') {
+      const body = await readJsonBody(req)
+      const updated = await updatePurchaseChecklist(checklist[1], body.lines || body)
+      if (!updated) {
+        sendJson(res, 404, { ok: false, error: 'Закупка не найдена' })
+        return
+      }
+      sendJson(res, 200, { ok: true, purchase: updated })
+      return
+    }
+
+    const accept = pathname.match(/^\/api\/admin\/purchases\/([^/]+)\/accept$/)
+    if (accept && req.method === 'POST') {
+      const purchase = await getPurchaseById(accept[1])
+      if (!purchase) {
+        sendJson(res, 404, { ok: false, error: 'Закупка не найдена' })
+        return
+      }
+      const supply = await createSupplyFromPurchase(purchase)
+      const updated = await updatePurchase(purchase.id, (current) => ({
+        ...current,
+        moysklad: {
+          ...current.moysklad,
+          supplyId: supply.id,
+          supplyName: supply.name,
+          supplyHref: supply.href,
+          cashOutId: supply.cashOut?.id || current.moysklad?.cashOutId || null,
+          cashOutName: supply.cashOut?.name || current.moysklad?.cashOutName || null,
+          payedSum: supply.payedSum ?? current.moysklad?.payedSum ?? null,
+        },
+      }))
+      sendJson(res, 200, {
+        ok: true,
+        purchase: updated,
+        created: supply.created,
+        ...(supply.cashOutError
+          ? {
+              warning: `Приёмка создана, но «Оплачено» не проставлено: ${supply.cashOutError}`,
+            }
+          : {}),
+      })
+      return
+    }
+
+    sendJson(res, 405, { error: 'Method not allowed' })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Admin purchases failed'
+    sendJson(res, mapErrorStatus(error), { ok: false, error: message })
+  }
+}
+
 export async function handleAdminOrders(req, res, pathname) {
   if (req.method === 'OPTIONS') {
     corsPreflight(res, 'GET, PATCH, OPTIONS')
@@ -606,6 +983,10 @@ export async function handleApiRequest(req, res) {
   }
   if (pathname === '/api/admin/orders' || pathname.startsWith('/api/admin/orders/')) {
     await handleAdminOrders(req, res, pathname)
+    return true
+  }
+  if (pathname === '/api/admin/purchases' || pathname.startsWith('/api/admin/purchases/')) {
+    await handleAdminPurchases(req, res, pathname)
     return true
   }
   if (pathname === '/api/admin/reports') {
