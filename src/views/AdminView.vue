@@ -26,14 +26,12 @@ const isLoading = ref(false)
 const isUpdating = ref('')
 const error = ref('')
 const lastSyncedAt = ref(null)
-const soundEnabled = ref(true)
 const filter = ref('all')
 const activeSection = ref('orders')
 const knownIds = ref(new Set())
 const flashIds = ref(new Set())
 
 let pollTimer = null
-let audioCtx = null
 let ordersInFlight = false
 
 const {
@@ -71,30 +69,6 @@ function formatDate(value) {
   }
 }
 
-function playChime() {
-  if (!soundEnabled.value || typeof window === 'undefined') return
-  try {
-    const Ctx = window.AudioContext || window.webkitAudioContext
-    if (!Ctx) return
-    audioCtx = audioCtx || new Ctx()
-    const now = audioCtx.currentTime
-    const osc = audioCtx.createOscillator()
-    const gain = audioCtx.createGain()
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(880, now)
-    osc.frequency.exponentialRampToValueAtTime(1320, now + 0.12)
-    gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28)
-    osc.connect(gain)
-    gain.connect(audioCtx.destination)
-    osc.start(now)
-    osc.stop(now + 0.3)
-  } catch {
-    // ignore audio errors
-  }
-}
-
 async function loadOrders({ silent = false } = {}) {
   if (!isAuthed.value) return
   // Poll ticks must not pile up: MoySklad calls are serialized process-wide.
@@ -112,7 +86,6 @@ async function loadOrders({ silent = false } = {}) {
     )
 
     if (brandNew.length) {
-      playChime()
       const flashed = new Set(flashIds.value)
       for (const order of brandNew) flashed.add(order.id)
       flashIds.value = flashed
@@ -319,12 +292,10 @@ onUnmounted(() => {
         :filter="filter"
         :is-loading="isLoading"
         :is-updating="isUpdating"
-        :sound-enabled="soundEnabled"
         :error="error"
         :flash-ids="flashIds"
         :status-label="statusLabel"
         @set-filter="filter = $event"
-        @toggle-sound="soundEnabled = $event"
         @refresh="loadOrders()"
         @set-status="setStatus"
       />

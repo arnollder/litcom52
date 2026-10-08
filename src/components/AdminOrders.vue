@@ -6,13 +6,12 @@ const props = defineProps({
   filter: { type: String, required: true },
   isLoading: { type: Boolean, required: true },
   isUpdating: { type: String, required: true },
-  soundEnabled: { type: Boolean, required: true },
   error: { type: String, default: '' },
   flashIds: { type: Object, required: true },
   statusLabel: { type: Object, required: true },
 })
 
-const emit = defineEmits(['set-filter', 'toggle-sound', 'refresh', 'set-status'])
+const emit = defineEmits(['set-filter', 'refresh', 'set-status'])
 
 const pending = ref(null)
 const isRefreshing = ref(false)
@@ -156,14 +155,6 @@ function formatDate(value) {
   <div>
     <div class="toolbar">
       <div class="toolbar__actions">
-        <label class="sound">
-          <input
-            :checked="soundEnabled"
-            type="checkbox"
-            @change="emit('toggle-sound', $event.target.checked)"
-          />
-          Звук
-        </label>
         <button
           class="icon-refresh"
           type="button"
@@ -426,14 +417,6 @@ function formatDate(value) {
 
 .filters__tab--active::after {
   background: var(--green);
-}
-
-.sound {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: var(--ink-muted);
-  font-size: 0.9rem;
 }
 
 .orders {
