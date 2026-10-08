@@ -464,11 +464,17 @@ function formatDate(value) {
   width: 1.2rem;
   height: 1.2rem;
   transform-origin: center;
+  transition: transform 0.35s ease;
+}
+
+.icon-refresh:hover:not(:disabled) .icon-refresh__svg:not(.icon-refresh__svg--spin) {
+  transform: rotate(45deg);
 }
 
 .icon-refresh__svg--spin {
   animation: refresh-spin 0.75s linear infinite;
   animation-direction: normal;
+  transition: none;
 }
 
 @keyframes refresh-spin {
