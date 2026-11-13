@@ -6,10 +6,11 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-HOST="${DEPLOY_HOST:-root@62.113.110.31}"
+HOST="${DEPLOY_HOST:-root@88.218.171.254}"
 SSH_KEY="${DEPLOY_SSH_KEY:-$HOME/.ssh/id_ed25519}"
 REMOTE_DIR="${DEPLOY_REMOTE_DIR:-/opt/litcom52}"
-SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o ConnectTimeout=15)
+PUBLIC_URL="${DEPLOY_PUBLIC_URL:-https://litkom-m52.arnolder.ru}"
+SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new)
 
 echo "==> rsync -> ${HOST}:${REMOTE_DIR}"
 rsync -az --delete \
@@ -27,7 +28,7 @@ rsync -az --delete \
   --exclude data/push-subscriptions.json \
   --exclude data/push-poller-state.json \
   --exclude data/sync.lock \
-  -e "ssh -i ${SSH_KEY} -o BatchMode=yes -o ConnectTimeout=15" \
+  -e "ssh -i ${SSH_KEY} -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new" \
   "${ROOT_DIR}/" "${HOST}:${REMOTE_DIR}/"
 
 echo "==> remote build + restart"
@@ -59,6 +60,7 @@ curl -sS -o /dev/null -w 'catalog:%{http_code}\\n' http://127.0.0.1:4173/catalog
 "
 
 echo "==> public check"
-curl -sS -o /dev/null -w "https:%{http_code}\\n" --connect-timeout 15 https://litkom-m52.ru/
-curl -sS -o /dev/null -w "admin:%{http_code}\\n" --connect-timeout 15 https://admin.litkom-m52.ru/ || true
-echo "Deploy OK → https://litkom-m52.ru/ · https://admin.litkom-m52.ru/"
+curl -sS -o /dev/null -w "https:%{http_code}\\n" --connect-timeout 15 "${PUBLIC_URL}/"
+curl -sS -o /dev/null -w "health:%{http_code}\\n" --connect-timeout 15 "${PUBLIC_URL}/healthz" || true
+curl -sS -o /dev/null -w "admin:%{http_code}\\n" --connect-timeout 15 "${PUBLIC_URL}/admin" || true
+echo "Deploy OK → ${PUBLIC_URL}/ · ${PUBLIC_URL}/admin"

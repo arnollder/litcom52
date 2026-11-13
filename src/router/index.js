@@ -61,8 +61,12 @@ router.beforeEach((to) => {
   if (typeof window === 'undefined') return true
 
   if (isStoreHost() && (to.name === 'admin' || to.path === '/admin' || to.path.startsWith('/admin/'))) {
-    window.location.replace(`${adminOrigin()}/`)
-    return false
+    const origin = adminOrigin()
+    // New prod: admin lives on the same host at /admin — do not bounce away.
+    if (origin !== window.location.origin) {
+      window.location.replace(`${origin}/`)
+      return false
+    }
   }
 
   if (to.name === 'checkout' && readOrderEditSession()) {

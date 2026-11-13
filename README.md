@@ -19,8 +19,9 @@ npm run dev
 
 Сборка: `npm run build`. Продакшен на VPS: `npm run build && npm start`.
 
-Прод: [https://litkom-m52.ru/](https://litkom-m52.ru/) (`root@62.113.110.31`, каталог `/opt/litcom52`).
-Админка: [https://admin.litkom-m52.ru/](https://admin.litkom-m52.ru/) (отдельный поддомен и PWA).
+Прод: [https://litkom-m52.arnolder.ru/](https://litkom-m52.arnolder.ru/) (`root@88.218.171.254`, каталог `/opt/litcom52`).
+Админка: [https://litkom-m52.arnolder.ru/admin](https://litkom-m52.arnolder.ru/admin) (тот же хост).
+Старый VPS `litkom-m52.ru` / `62.113.110.31` больше не целевой.
 
 Стабильность с мобильных сетей: [deploy/CLOUDFLARE.md](deploy/CLOUDFLARE.md) — прокси Cloudflare (Free) + nginx real IP на VPS.
 
