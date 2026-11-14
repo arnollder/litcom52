@@ -55,13 +55,15 @@ async function ensureMessaging() {
       return null
     }
 
-    const admin = (await import('firebase-admin')).default
-    if (!admin.apps.length) {
-      admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+    // firebase-admin v12+ ESM: modular app/messaging entrypoints
+    const { initializeApp, getApps, cert } = await import('firebase-admin/app')
+    const { getMessaging } = await import('firebase-admin/messaging')
+    if (!getApps().length) {
+      initializeApp({
+        credential: cert(serviceAccount),
       })
     }
-    messaging = admin.messaging()
+    messaging = getMessaging()
     return messaging
   } catch (error) {
     initError = error instanceof Error ? error.message : String(error)
