@@ -48,3 +48,12 @@ export async function readNativeAdminSession() {
     return { mode: false, token: '' }
   }
 }
+
+/**
+ * Local Capacitor shell URL that clears admin Preferences, then opens the storefront.
+ * Clearing Preferences from the remote https origin is unreliable (plugins often missing).
+ */
+export function getCapacitorClearAdminShellUrl() {
+  // androidScheme: https → app content is served from https://localhost
+  return 'https://localhost/?clearAdmin=1'
+}

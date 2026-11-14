@@ -16,8 +16,10 @@ import InstallAppButton from '../components/InstallAppButton.vue'
 import PushToggle from '../components/PushToggle.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { syncAppBadge, useAdminPush } from '../composables/useAdminPush.js'
+import { isCapacitorNative } from '../utils/capacitor.js'
 import {
   clearNativeAdminSession,
+  getCapacitorClearAdminShellUrl,
   saveNativeAdminSession,
 } from '../utils/admin-native-session.js'
 
@@ -152,6 +154,7 @@ async function logout({ goStorefront = true } = {}) {
   } catch {
     // ignore push cleanup errors
   }
+  // Best-effort: на remote origin Preferences часто недоступны.
   await clearNativeAdminSession()
   clearAdminToken()
   adminPushEnsured = false
@@ -161,10 +164,13 @@ async function logout({ goStorefront = true } = {}) {
   newCount.value = 0
   syncAppBadge(0)
   stopPolling()
-  // APK / WebView: с /admin уходим на витрину, иначе залипнешь на форме входа.
-  if (goStorefront && typeof window !== 'undefined') {
-    window.location.assign('/')
+  if (!goStorefront || typeof window === 'undefined') return
+  // APK: возврат на локальный splash с ?clearAdmin=1 — там Preferences точно сработают.
+  if (isCapacitorNative()) {
+    window.location.replace(getCapacitorClearAdminShellUrl())
+    return
   }
+  window.location.assign('/')
 }
 
 async function setStatus(order, status) {

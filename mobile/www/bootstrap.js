@@ -397,4 +397,20 @@ updateLaterBtn?.addEventListener('click', () => {
   openService({ skipUpdateCheck: true })
 })
 
-readLocalAppInfo().then(() => openService())
+async function consumeClearAdminFlag() {
+  try {
+    const url = new URL(window.location.href)
+    if (url.searchParams.get('clearAdmin') !== '1') return false
+    await clearAdminSession()
+    url.searchParams.delete('clearAdmin')
+    const next = `${url.pathname}${url.search}${url.hash}` || '/'
+    window.history.replaceState(null, '', next)
+    return true
+  } catch {
+    return false
+  }
+}
+
+readLocalAppInfo()
+  .then(() => consumeClearAdminFlag())
+  .then((cleared) => openService({ skipAdminSession: cleared }))
