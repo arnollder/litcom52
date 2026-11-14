@@ -146,7 +146,7 @@ function login() {
   loadOrders()
 }
 
-async function logout() {
+async function logout({ goStorefront = true } = {}) {
   try {
     await disableAdminPush()
   } catch {
@@ -161,6 +161,10 @@ async function logout() {
   newCount.value = 0
   syncAppBadge(0)
   stopPolling()
+  // APK / WebView: с /admin уходим на витрину, иначе залипнешь на форме входа.
+  if (goStorefront && typeof window !== 'undefined') {
+    window.location.assign('/')
+  }
 }
 
 async function setStatus(order, status) {
@@ -305,7 +309,12 @@ onUnmounted(() => {
           Токен
           <input v-model="tokenInput" type="password" autocomplete="current-password" />
         </label>
-        <button class="btn btn-primary" type="submit">Войти</button>
+        <div class="login__actions">
+          <button class="btn btn-primary" type="submit">Войти</button>
+          <button class="btn btn-ghost" type="button" @click="logout({ goStorefront: true })">
+            На витрину
+          </button>
+        </div>
       </form>
       <p v-if="error" class="error">{{ error }}</p>
     </section>
@@ -485,6 +494,13 @@ onUnmounted(() => {
   display: grid;
   gap: 0.85rem;
   margin-top: 1rem;
+}
+
+.login__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
 }
 
 .login label {
