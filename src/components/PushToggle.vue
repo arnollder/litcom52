@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue'
 import { useAdminPush } from '../composables/useAdminPush.js'
 import { usePushNotifications } from '../composables/usePushNotifications.js'
 import { useSavedCounterparty } from '../utils/counterparty.js'
+import { isCapacitorNative } from '../utils/capacitor.js'
 
 const props = defineProps({
   audience: {
@@ -20,7 +21,10 @@ const isAdmin = computed(() => props.audience === 'admin')
 
 const visible = computed(() => {
   if (isAdmin.value) return adminPush.supported.value
-  return customerPush.isSupported.value && Boolean(savedCounterparty.value?.token)
+  // В APK тумблер показываем всегда (если FCM/web push доступны), даже без токена —
+  // иначе кажется, что пушей «нет». Включить без токена группы всё равно нельзя.
+  if (!customerPush.isSupported.value) return false
+  return Boolean(savedCounterparty.value?.token) || isCapacitorNative()
 })
 
 const isOn = computed(() =>
@@ -63,8 +67,13 @@ const title = computed(() => {
   }
   const name = savedCounterparty.value?.name
   if (isOn.value) return `Push включён · ${name}`
+  if (!savedCounterparty.value?.token) {
+    return 'Сначала откройте «Мои заказы» и войдите токеном группы'
+  }
   if (permission.value === 'denied') {
-    return 'Разрешите уведомления в настройках сайта и обновите страницу'
+    return isCapacitorNative()
+      ? 'Разрешите уведомления в настройках Android'
+      : 'Разрешите уведомления в настройках сайта и обновите страницу'
   }
   return `Push выключен · ${name || 'контрагент'}`
 })

@@ -62,10 +62,13 @@ function detectSupport() {
 }
 
 export function useAdminPush() {
+  // Re-evaluate on each composable use (after Capacitor plugins register).
   supported.value = detectSupport()
-  enabled.value = readEnabledFlag() && (isCapacitorPushAvailable()
-    ? Boolean(readStoredFcmToken())
-    : permission.value === 'granted')
+  enabled.value =
+    readEnabledFlag() &&
+    (isCapacitorPushAvailable()
+      ? Boolean(readStoredFcmToken())
+      : permission.value === 'granted')
 
   const canEnable = computed(
     () => supported.value && permission.value !== 'denied' && !enabled.value && !busy.value,
