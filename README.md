@@ -23,6 +23,8 @@ npm run dev
 Админка: [https://litkom-m52.arnolder.ru/admin](https://litkom-m52.arnolder.ru/admin) (тот же хост).
 Старый VPS `litkom-m52.ru` / `62.113.110.31` больше не целевой.
 
+Android APK (клон сайта, ветка `feature/android-apk`): см. [mobile/README.md](mobile/README.md). Сборка: `npm run mobile:apk`.
+
 Стабильность с мобильных сетей: [deploy/CLOUDFLARE.md](deploy/CLOUDFLARE.md) — прокси Cloudflare (Free) + nginx real IP на VPS.
 
 Деплой с локальной машины:

@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { listCustomerOrdersForAdminLite } from './list-customer-orders.mjs'
 import { isWebPushConfigured, notifyNewOrders, notifyOrderPaid } from './web-push.mjs'
+import { isFcmConfigured } from './fcm-push.mjs'
 import { loadEnvFromFile } from './moysklad-env.mjs'
 
 const ROOT_DIR = resolve(new URL('.', import.meta.url).pathname, '../..')
@@ -48,7 +49,9 @@ async function pollOnce({ bootstrap = false } = {}) {
   polling = true
   try {
     await loadEnvFromFile()
-    if (!isWebPushConfigured()) return
+    const web = isWebPushConfigured()
+    const fcm = await isFcmConfigured()
+    if (!web && !fcm) return
 
     const listed = await listCustomerOrdersForAdminLite({ limit: 100 })
     const newOrders = listed.orders.filter((order) => order.status === 'new')
@@ -99,15 +102,24 @@ async function pollOnce({ bootstrap = false } = {}) {
 
 export function startAdminPushPoller() {
   if (timer) return
-  if (!isWebPushConfigured()) {
-    console.log('[admin-push-poller] disabled — VAPID keys missing')
-    return
-  }
 
-  console.log(`[admin-push-poller] started (every ${POLL_MS}ms)`)
-  pollOnce({ bootstrap: true })
-  timer = setInterval(() => pollOnce(), POLL_MS)
-  if (typeof timer.unref === 'function') timer.unref()
+  void (async () => {
+    await loadEnvFromFile()
+    const web = isWebPushConfigured()
+    const fcm = await isFcmConfigured()
+    if (!web && !fcm) {
+      console.log('[admin-push-poller] disabled — no VAPID and no FCM credentials')
+      return
+    }
+    if (timer) return
+
+    console.log(
+      `[admin-push-poller] started (every ${POLL_MS}ms) web=${web ? 'on' : 'off'} fcm=${fcm ? 'on' : 'off'}`,
+    )
+    pollOnce({ bootstrap: true })
+    timer = setInterval(() => pollOnce(), POLL_MS)
+    if (typeof timer.unref === 'function') timer.unref()
+  })()
 }
 
 export function stopAdminPushPoller() {
@@ -117,7 +129,6 @@ export function stopAdminPushPoller() {
 }
 
 export async function notifyPushForNewOrder(order = {}) {
-  if (!isWebPushConfigured()) return
   await notifyNewOrders({
     newCount: 1,
     orderName: order?.name || order?.moySklad?.name || '',
@@ -138,7 +149,6 @@ export async function notifyPushForNewOrder(order = {}) {
 }
 
 export async function notifyPushForPaidOrder(order = {}) {
-  if (!isWebPushConfigured()) return
   await notifyOrderPaid({
     orderName: order?.moySklad?.name || order?.name || '',
     orderId: order?.id || order?.moySklad?.id || '',

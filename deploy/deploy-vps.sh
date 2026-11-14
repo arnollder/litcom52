@@ -21,6 +21,9 @@ rsync -az --delete \
   --exclude .tools \
   --exclude .env \
   --exclude .env.\* \
+  --exclude secrets \
+  --exclude android \
+  --exclude mobile/artifacts \
   --exclude data/orders.json \
   --exclude data/purchases.json \
   --exclude data/mail-counterparties.json \

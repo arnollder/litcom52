@@ -825,13 +825,17 @@ export async function handleAdminPush(req, res, pathname) {
     assertAdmin(req)
 
     if (pathname === '/api/admin/push/subscribe' && req.method === 'POST') {
-      if (!isWebPushConfigured()) {
+      const body = await readJsonBody(req)
+      const payload = body.subscription || body
+      const isFcm =
+        String(payload?.channel || '').trim() === 'fcm' ||
+        Boolean(String(payload?.token || payload?.fcmToken || '').trim())
+      if (!isFcm && !isWebPushConfigured()) {
         sendJson(res, 503, { ok: false, error: 'Web Push не настроен на сервере' })
         return
       }
-      const body = await readJsonBody(req)
-      const row = await upsertAdminPushSubscription(body.subscription || body)
-      sendJson(res, 200, { ok: true, id: row.id })
+      const row = await upsertAdminPushSubscription(payload)
+      sendJson(res, 200, { ok: true, id: row.id, channel: row.channel || 'web' })
       return
     }
 

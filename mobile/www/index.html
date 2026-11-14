@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="dark" />
+    <title>Литком М52</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #04120b;
+        --ink: #e8f5ee;
+        --muted: #8fb59f;
+        --green: #1f8f5c;
+        --danger: #c45c5c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+      main {
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 2rem 1.25rem;
+        text-align: center;
+      }
+      .mark {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 1rem;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 1rem;
+        background: linear-gradient(145deg, #2bb673, var(--green));
+        font-weight: 800;
+        font-size: 1.4rem;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+      }
+      h1 {
+        margin: 0 0 0.4rem;
+        font-size: 1.35rem;
+        letter-spacing: 0.02em;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.45;
+        max-width: 22rem;
+      }
+      .status {
+        margin-top: 1.25rem;
+        font-size: 0.92rem;
+      }
+      button {
+        margin-top: 1.25rem;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.75rem 1.2rem;
+        background: var(--green);
+        color: white;
+        font: inherit;
+        font-weight: 600;
+        display: none;
+      }
+      button.show {
+        display: inline-flex;
+      }
+      #admin-gate,
+      #update-gate {
+        display: none;
+        width: min(22rem, 100%);
+        margin: 1.5rem auto 0;
+        text-align: left;
+      }
+      #admin-gate.show,
+      #update-gate.show {
+        display: block;
+      }
+      #admin-gate label {
+        display: block;
+        font-size: 0.85rem;
+        color: var(--muted);
+        margin-bottom: 0.4rem;
+      }
+      #admin-gate input {
+        width: 100%;
+        border: 1px solid #1f3d2e;
+        border-radius: 0.75rem;
+        padding: 0.75rem 0.9rem;
+        background: #0a1c14;
+        color: var(--ink);
+        font: inherit;
+      }
+      #admin-gate input:focus {
+        outline: 2px solid var(--green);
+        outline-offset: 1px;
+      }
+      #admin-gate .actions,
+      #update-gate .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 0.9rem;
+      }
+      #admin-gate button,
+      #update-gate button {
+        display: inline-flex;
+        margin-top: 0;
+      }
+      #admin-gate button.ghost,
+      #update-gate button.ghost {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid #1f3d2e;
+      }
+      #admin-error {
+        margin-top: 0.6rem;
+        color: var(--danger);
+        font-size: 0.88rem;
+        display: none;
+      }
+      #admin-error.show {
+        display: block;
+      }
+      #update-gate h2 {
+        margin: 0 0 0.4rem;
+        font-size: 1.05rem;
+      }
+      #local-version {
+        margin-top: 1.75rem;
+        font-size: 0.78rem;
+        color: #5f8a72;
+      }
+      .boot-copy.hidden,
+      .status.hidden,
+      #retry.hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div>
+        <div class="mark" id="mark" role="presentation">Л</div>
+        <h1>Литком М52</h1>
+        <p class="boot-copy" id="boot-copy">Открываем сервис…</p>
+        <p class="status" id="status">Проверяю актуальный адрес</p>
+        <button type="button" id="retry">Повторить</button>
+
+        <div id="update-gate">
+          <h2>Доступно обновление</h2>
+          <p id="update-detail">Новая версия приложения</p>
+          <div class="actions">
+            <button type="button" class="show" id="update-now">Обновить</button>
+            <button type="button" class="show ghost" id="update-later">Позже</button>
+          </div>
+        </div>
+
+        <form id="admin-gate" autocomplete="off">
+          <label for="admin-token">Токен администратора</label>
+          <input
+            id="admin-token"
+            name="admin-token"
+            type="password"
+            inputmode="text"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <p id="admin-error"></p>
+          <div class="actions">
+            <button type="submit" class="show" id="admin-enter">Войти в админку</button>
+            <button type="button" class="show ghost" id="admin-cancel">Отмена</button>
+          </div>
+        </form>
+
+        <p id="local-version"></p>
+      </div>
+    </main>
+    <script type="module" src="./bootstrap.js"></script>
+  </body>
+</html>

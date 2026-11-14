@@ -1,0 +1,26 @@
+{
+  "appId": "ru.arnolder.litcom52",
+  "appName": "Литком М52",
+  "webDir": "mobile/www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#04120b"
+  },
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "litkom-m52.arnolder.ru",
+      "*.arnolder.ru",
+      "litkom-m52.ru",
+      "admin.litkom-m52.ru",
+      "www.litkom-m52.ru"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "backgroundColor": "#04120b",
+      "showSpinner": false
+    }
+  }
+}

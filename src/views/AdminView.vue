@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   clearAdminToken,
+  consumeAdminTokenFromHash,
   fetchAdminOrders,
   getAdminToken,
   persistAdminToken,
@@ -15,8 +16,15 @@ import InstallAppButton from '../components/InstallAppButton.vue'
 import PushToggle from '../components/PushToggle.vue'
 import ThemeToggle from '../components/ThemeToggle.vue'
 import { syncAppBadge, useAdminPush } from '../composables/useAdminPush.js'
+import {
+  clearNativeAdminSession,
+  saveNativeAdminSession,
+} from '../utils/admin-native-session.js'
 
 const POLL_MS = 45_000
+
+// APK handoff: #admin_token=… → storage before first auth check
+consumeAdminTokenFromHash()
 
 const tokenInput = ref('')
 const isAuthed = ref(Boolean(getAdminToken()))
@@ -33,9 +41,11 @@ const flashIds = ref(new Set())
 
 let pollTimer = null
 let ordersInFlight = false
+let adminPushEnsured = false
 
 const {
-  syncSubscription: syncPushSubscription,
+  ensureAdminPush,
+  disable: disableAdminPush,
 } = useAdminPush()
 
 const SECTIONS = [
@@ -103,6 +113,15 @@ async function loadOrders({ silent = false } = {}) {
     lastSyncedAt.value = new Date().toISOString()
     // Remember only after the server accepted the token (installed PWA reuses it).
     persistAdminToken()
+    const token = getAdminToken()
+    if (token) {
+      saveNativeAdminSession(token)
+      // Один раз за сессию, не на каждый poll заказов.
+      if (!adminPushEnsured) {
+        adminPushEnsured = true
+        ensureAdminPush()
+      }
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Не удалось загрузить заказы'
     if (err?.status === 401 || err?.status === 503) {
@@ -125,11 +144,17 @@ function login() {
   error.value = ''
   knownIds.value = new Set()
   loadOrders()
-  syncPushSubscription()
 }
 
-function logout() {
+async function logout() {
+  try {
+    await disableAdminPush()
+  } catch {
+    // ignore push cleanup errors
+  }
+  await clearNativeAdminSession()
   clearAdminToken()
+  adminPushEnsured = false
   isAuthed.value = false
   activeSection.value = 'orders'
   orders.value = []
@@ -209,7 +234,7 @@ onMounted(() => {
   if (isAuthed.value) {
     loadOrders()
     if (activeSection.value === 'orders') startPolling()
-    syncPushSubscription()
+    // FCM/Web push — один раз после успешного loadOrders (ensureAdminPush).
   }
 })
 

@@ -4,6 +4,13 @@ import {
   subscribeAdminPush,
   unsubscribeAdminPush,
 } from '../services/moysklad'
+import {
+  clearCapacitorFcmToken,
+  fcmSubscriptionPayload,
+  isCapacitorPushAvailable,
+  readStoredFcmToken,
+  registerCapacitorFcmToken,
+} from './useCapacitorFcm.js'
 
 const PUSH_ENABLED_KEY = 'litcom52-admin-push-enabled'
 
@@ -44,14 +51,21 @@ async function getRegistration() {
   return navigator.serviceWorker.ready
 }
 
-export function useAdminPush() {
-  supported.value =
+function detectSupport() {
+  if (isCapacitorPushAvailable()) return true
+  return (
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
     'PushManager' in window &&
     'Notification' in window
+  )
+}
 
-  enabled.value = readEnabledFlag() && permission.value === 'granted'
+export function useAdminPush() {
+  supported.value = detectSupport()
+  enabled.value = readEnabledFlag() && (isCapacitorPushAvailable()
+    ? Boolean(readStoredFcmToken())
+    : permission.value === 'granted')
 
   const canEnable = computed(
     () => supported.value && permission.value !== 'denied' && !enabled.value && !busy.value,
@@ -61,13 +75,7 @@ export function useAdminPush() {
     () => supported.value && permission.value === 'denied' && !busy.value,
   )
 
-  async function enable() {
-    if (!supported.value || busy.value) return false
-    error.value = ''
-
-    // Chrome requires requestPermission in the same user-gesture turn.
-    // Any prior await (fetch / SW ready) turns this into a "quiet" prompt
-    // that often lands the site in the blocked-notifications list.
+  async function enableWeb() {
     if (Notification.permission === 'denied') {
       permission.value = 'denied'
       error.value =
@@ -88,23 +96,38 @@ export function useAdminPush() {
       return false
     }
 
+    const { publicKey } = await fetchPushVapidPublicKey()
+    const registration = await getRegistration()
+    if (!registration?.pushManager) {
+      throw new Error('Service Worker не готов')
+    }
+
+    let subscription = await registration.pushManager.getSubscription()
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      })
+    }
+
+    await subscribeAdminPush(subscription.toJSON())
+    return true
+  }
+
+  async function enableFcm() {
+    const token = await registerCapacitorFcmToken()
+    await subscribeAdminPush(fcmSubscriptionPayload(token))
+    permission.value = 'granted'
+    return true
+  }
+
+  async function enable() {
+    if (!supported.value || busy.value) return false
+    error.value = ''
     busy.value = true
     try {
-      const { publicKey } = await fetchPushVapidPublicKey()
-      const registration = await getRegistration()
-      if (!registration?.pushManager) {
-        throw new Error('Service Worker не готов')
-      }
-
-      let subscription = await registration.pushManager.getSubscription()
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        })
-      }
-
-      await subscribeAdminPush(subscription.toJSON())
+      if (isCapacitorPushAvailable()) await enableFcm()
+      else await enableWeb()
       writeEnabledFlag(true)
       enabled.value = true
       return true
@@ -122,11 +145,17 @@ export function useAdminPush() {
     error.value = ''
 
     try {
-      const registration = await getRegistration()
-      const subscription = await registration?.pushManager?.getSubscription()
-      if (subscription) {
-        await unsubscribeAdminPush(subscription.toJSON())
-        await subscription.unsubscribe()
+      if (isCapacitorPushAvailable()) {
+        const token = readStoredFcmToken()
+        if (token) await unsubscribeAdminPush(fcmSubscriptionPayload(token))
+        await clearCapacitorFcmToken()
+      } else {
+        const registration = await getRegistration()
+        const subscription = await registration?.pushManager?.getSubscription()
+        if (subscription) {
+          await unsubscribeAdminPush(subscription.toJSON())
+          await subscription.unsubscribe()
+        }
       }
       writeEnabledFlag(false)
       enabled.value = false
@@ -142,6 +171,11 @@ export function useAdminPush() {
 
   async function syncSubscription() {
     if (!supported.value) return
+    if (isCapacitorPushAvailable()) {
+      // В APK после входа в админку пуш включаем сами — без тумблера.
+      await enable()
+      return
+    }
     if (Notification.permission !== 'granted') return
     if (!readEnabledFlag()) {
       const registration = await getRegistration()
@@ -149,6 +183,17 @@ export function useAdminPush() {
       if (!existing) return
     }
     await enable()
+  }
+
+  /**
+   * Call after admin token is confirmed (orders loaded / login).
+   * Capacitor: always (re)register FCM and POST subscription to server.
+   */
+  async function ensureAdminPush() {
+    if (!supported.value) return false
+    if (isCapacitorPushAvailable()) return enable()
+    if (readEnabledFlag() && Notification.permission === 'granted') return enable()
+    return false
   }
 
   return {
@@ -163,6 +208,7 @@ export function useAdminPush() {
     enable,
     disable,
     syncSubscription,
+    ensureAdminPush,
   }
 }
 

@@ -57,6 +57,30 @@ export function clearAdminToken() {
   removeStorage(localStorage)
 }
 
+/**
+ * APK / deep-link handoff: /admin#admin_token=… → session+localStorage, then strip hash.
+ * Returns the token if one was consumed from the URL.
+ */
+export function consumeAdminTokenFromHash() {
+  if (typeof window === 'undefined') return ''
+  const raw = String(window.location.hash || '').replace(/^#/, '')
+  if (!raw) return ''
+
+  const params = new URLSearchParams(raw.includes('=') ? raw : `token=${raw}`)
+  const token = String(
+    params.get('admin_token') || params.get('token') || '',
+  ).trim()
+  if (!token) return ''
+
+  setAdminToken(token)
+  persistAdminToken()
+
+  const url = new URL(window.location.href)
+  url.hash = ''
+  window.history.replaceState(null, '', `${url.pathname}${url.search}`)
+  return token
+}
+
 function adminHeaders() {
   const token = getAdminToken()
   return {

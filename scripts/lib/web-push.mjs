@@ -2,11 +2,15 @@
 
 import webpush from 'web-push'
 import {
+  listAdminFcmTokens,
   listAdminPushSubscriptions,
+  listCustomerFcmTokens,
   listPushSubscriptionsForCounterparty,
   removePushSubscriptionById,
   removePushSubscription,
+  removePushSubscriptionByToken,
 } from './push-subscriptions.mjs'
+import { sendFcmToTokens } from './fcm-push.mjs'
 
 let configured = false
 
@@ -86,14 +90,25 @@ export async function notifyNewOrders({
       ? `Группа ${group} оформила заказ. Ждём подтверждения оплаты.`
       : `${count} новых заказов ждут подтверждения оплаты.`
 
-  const subscriptions = await listAdminPushSubscriptions()
-  return sendPushToSubscriptions(subscriptions, {
+  const payload = {
     title,
     body,
     badge: count,
-    url: '/',
+    url: '/admin',
     tag: orderId ? `order-${orderId}` : 'new-orders',
+  }
+  const subscriptions = await listAdminPushSubscriptions()
+  const web = await sendPushToSubscriptions(subscriptions, payload)
+  const fcmTokens = await listAdminFcmTokens()
+  const fcm = await sendFcmToTokens(fcmTokens, payload, {
+    onDeadToken: (token) => removePushSubscriptionByToken(token),
   })
+  return {
+    sent: (web.sent || 0) + (fcm.sent || 0),
+    failed: (web.failed || 0) + (fcm.failed || 0),
+    web,
+    fcm,
+  }
 }
 
 export async function notifyOrderPaid({
@@ -105,13 +120,24 @@ export async function notifyOrderPaid({
   const title = 'Оплачено'
   const body = `Платёж от группы ${group} подтверждён. Ждём отгрузку.`
 
-  const subscriptions = await listAdminPushSubscriptions()
-  return sendPushToSubscriptions(subscriptions, {
+  const payload = {
     title,
     body,
-    url: '/',
+    url: '/admin',
     tag: orderId ? `order-paid-${orderId}` : 'order-paid',
+  }
+  const subscriptions = await listAdminPushSubscriptions()
+  const web = await sendPushToSubscriptions(subscriptions, payload)
+  const fcmTokens = await listAdminFcmTokens()
+  const fcm = await sendFcmToTokens(fcmTokens, payload, {
+    onDeadToken: (token) => removePushSubscriptionByToken(token),
   })
+  return {
+    sent: (web.sent || 0) + (fcm.sent || 0),
+    failed: (web.failed || 0) + (fcm.failed || 0),
+    web,
+    fcm,
+  }
 }
 
 /**
@@ -122,22 +148,32 @@ export async function notifyOrderShipped(payload) {
   if (!counterpartyId) return { sent: 0, skipped: true, reason: 'no-counterparty' }
 
   const rows = await listPushSubscriptionsForCounterparty(counterpartyId)
-  if (!rows.length) return { sent: 0, skipped: false, reason: 'no-subscribers' }
+  const webRows = rows.filter((row) => row.endpoint && row.keys)
+  const fcmTokens = await listCustomerFcmTokens(counterpartyId)
+  if (!webRows.length && !fcmTokens.length) {
+    return { sent: 0, skipped: false, reason: 'no-subscribers' }
+  }
 
   const orderLabel = payload.orderName ? `№${payload.orderName}` : 'ваш'
   const party = payload.counterpartyName ? ` (${payload.counterpartyName})` : ''
   const body = `Заказ ${orderLabel}${party} отгружен — можно забирать.`
+  const message = {
+    title: 'Заказ готов к выдаче',
+    body,
+    url: '/shop',
+    tag: 'litcom52-shipped',
+  }
 
-  return sendPushToSubscriptions(
-    rows,
-    {
-      title: 'Заказ готов к выдаче',
-      body,
-      url: '/shop',
-      tag: 'litcom52-shipped',
-    },
-    {
-      onDeadEndpoint: (row) => removePushSubscriptionById(row.id),
-    },
-  )
+  const web = await sendPushToSubscriptions(webRows, message, {
+    onDeadEndpoint: (row) => removePushSubscriptionById(row.id),
+  })
+  const fcm = await sendFcmToTokens(fcmTokens, message, {
+    onDeadToken: (token) => removePushSubscriptionByToken(token),
+  })
+  return {
+    sent: (web.sent || 0) + (fcm.sent || 0),
+    failed: (web.failed || 0) + (fcm.failed || 0),
+    web,
+    fcm,
+  }
 }

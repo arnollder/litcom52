@@ -6,6 +6,13 @@ import {
   subscribePush,
   unsubscribePush,
 } from '../services/push.js'
+import {
+  clearCapacitorFcmToken,
+  fcmSubscriptionPayload,
+  isCapacitorPushAvailable,
+  readStoredFcmToken,
+  registerCapacitorFcmToken,
+} from './useCapacitorFcm.js'
 
 const subscribedEndpoint = ref('')
 const isLoading = ref(false)
@@ -51,15 +58,19 @@ async function getServiceWorkerRegistration() {
   return registration?.active ? registration : navigator.serviceWorker.ready
 }
 
+function detectSupported() {
+  if (isCapacitorPushAvailable()) return true
+  return (
+    typeof window !== 'undefined' &&
+    'serviceWorker' in navigator &&
+    'PushManager' in window &&
+    'Notification' in window
+  )
+}
+
 export function usePushNotifications() {
   const savedCounterparty = useSavedCounterparty()
-  const isSupported = computed(
-    () =>
-      typeof window !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      'PushManager' in window &&
-      'Notification' in window,
-  )
+  const isSupported = computed(() => detectSupported())
   const isSubscribed = computed(() => Boolean(subscribedEndpoint.value))
   const canEnable = computed(
     () =>
@@ -82,6 +93,12 @@ export function usePushNotifications() {
 
   async function refreshSubscriptionState() {
     if (!isSupported.value) return
+    if (isCapacitorPushAvailable()) {
+      const token = readStoredFcmToken()
+      subscribedEndpoint.value = token ? `fcm:${token}` : ''
+      permission.value = token ? 'granted' : permission.value
+      return
+    }
     try {
       const registration = await getServiceWorkerRegistration()
       const current = await registration?.pushManager?.getSubscription()
@@ -105,28 +122,41 @@ export function usePushNotifications() {
       return false
     }
 
-    if (Notification.permission === 'denied') {
-      permission.value = 'denied'
-      error.value =
-        'Уведомления запрещены в настройках сайта. Разрешите их для этого адреса и обновите страницу.'
-      return false
-    }
-
-    const nextPermission =
-      Notification.permission === 'granted'
-        ? 'granted'
-        : await Notification.requestPermission()
-    permission.value = nextPermission
-    if (nextPermission !== 'granted') {
-      error.value =
-        nextPermission === 'denied'
-          ? 'Браузер запретил уведомления. Разрешите их в настройках сайта и обновите страницу.'
-          : 'Разрешение на уведомления не выдано.'
-      return false
-    }
-
     isLoading.value = true
     try {
+      if (isCapacitorPushAvailable()) {
+        const fcmToken = await registerCapacitorFcmToken()
+        await subscribePush({
+          counterpartyId: counterparty.id,
+          counterpartyName: counterparty.name,
+          token: counterparty.token,
+          subscription: fcmSubscriptionPayload(fcmToken),
+        })
+        subscribedEndpoint.value = `fcm:${fcmToken}`
+        permission.value = 'granted'
+        return true
+      }
+
+      if (Notification.permission === 'denied') {
+        permission.value = 'denied'
+        error.value =
+          'Уведомления запрещены в настройках сайта. Разрешите их для этого адреса и обновите страницу.'
+        return false
+      }
+
+      const nextPermission =
+        Notification.permission === 'granted'
+          ? 'granted'
+          : await Notification.requestPermission()
+      permission.value = nextPermission
+      if (nextPermission !== 'granted') {
+        error.value =
+          nextPermission === 'denied'
+            ? 'Браузер запретил уведомления. Разрешите их в настройках сайта и обновите страницу.'
+            : 'Разрешение на уведомления не выдано.'
+        return false
+      }
+
       const publicKey = await fetchPushPublicKey()
       if (!publicKey) {
         error.value = 'Push на сервере пока не настроен.'
@@ -169,6 +199,14 @@ export function usePushNotifications() {
 
     isLoading.value = true
     try {
+      if (isCapacitorPushAvailable()) {
+        const token = readStoredFcmToken()
+        if (token) await unsubscribePush({ endpoint: `fcm:${token}` })
+        await clearCapacitorFcmToken()
+        subscribedEndpoint.value = ''
+        return true
+      }
+
       const registration = await getServiceWorkerRegistration()
       const subscription = await registration?.pushManager?.getSubscription()
       if (subscription) {

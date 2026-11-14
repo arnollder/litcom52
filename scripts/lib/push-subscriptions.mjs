@@ -59,17 +59,67 @@ function rowAudience(row) {
   return row?.counterpartyId ? 'customer' : 'admin'
 }
 
+function rowChannel(row) {
+  if (row?.channel === 'fcm') return 'fcm'
+  if (String(row?.endpoint || '').startsWith('fcm:')) return 'fcm'
+  return 'web'
+}
+
+function fcmEndpoint(token) {
+  return `fcm:${String(token || '').trim()}`
+}
+
+function extractFcmToken(input) {
+  const direct = String(input?.token || input?.fcmToken || '').trim()
+  if (direct) return direct
+  const endpoint = subscriptionEndpoint(input)
+  if (endpoint.startsWith('fcm:')) return endpoint.slice(4).trim()
+  return ''
+}
+
 function toWebPushSubscription(row) {
+  if (rowChannel(row) !== 'web') return null
   const keys = normalizeKeys(row)
   const endpoint = subscriptionEndpoint(row)
   if (!endpoint || !keys) return null
-  return { endpoint, keys }
+  return { endpoint, keys, id: row.id }
 }
 
 /**
- * Save or update an admin browser push subscription.
+ * Save or update an admin browser / FCM push subscription.
  */
 export async function upsertAdminPushSubscription(subscription) {
+  const channel =
+    String(subscription?.channel || '').trim() === 'fcm' || extractFcmToken(subscription)
+      ? 'fcm'
+      : 'web'
+
+  if (channel === 'fcm') {
+    const token = extractFcmToken(subscription)
+    if (!token) {
+      const error = new Error('Некорректный FCM-токен')
+      error.status = 400
+      throw error
+    }
+    const endpoint = fcmEndpoint(token)
+    const store = await readStore()
+    const now = new Date().toISOString()
+    const index = store.subscriptions.findIndex((row) => row.endpoint === endpoint)
+    const row = {
+      id: index >= 0 ? store.subscriptions[index].id : randomUUID(),
+      audience: 'admin',
+      channel: 'fcm',
+      endpoint,
+      token,
+      createdAt: index >= 0 ? store.subscriptions[index].createdAt : now,
+      updatedAt: now,
+    }
+    if (index >= 0) store.subscriptions[index] = row
+    else store.subscriptions.push(row)
+    await writeStore(store)
+    return row
+  }
+
   const endpoint = subscriptionEndpoint(subscription)
   const keys = normalizeKeys(subscription)
   if (!endpoint || !keys) {
@@ -85,6 +135,7 @@ export async function upsertAdminPushSubscription(subscription) {
   const row = {
     id: index >= 0 ? store.subscriptions[index].id : randomUUID(),
     audience: 'admin',
+    channel: 'web',
     endpoint,
     keys,
     createdAt: index >= 0 ? store.subscriptions[index].createdAt : now,
@@ -99,7 +150,7 @@ export async function upsertAdminPushSubscription(subscription) {
 }
 
 /**
- * Save or update a browser push subscription for a MoySklad counterparty.
+ * Save or update a browser / FCM push subscription for a MoySklad counterparty.
  */
 export async function upsertPushSubscription({
   counterpartyId,
@@ -107,13 +158,47 @@ export async function upsertPushSubscription({
   subscription,
 }) {
   const cpId = String(counterpartyId || '').trim()
-  const endpoint = subscriptionEndpoint(subscription)
-  const keys = normalizeKeys(subscription)
   if (!cpId) {
     const error = new Error('Не указан контрагент')
     error.status = 400
     throw error
   }
+
+  const channel =
+    String(subscription?.channel || '').trim() === 'fcm' || extractFcmToken(subscription)
+      ? 'fcm'
+      : 'web'
+
+  if (channel === 'fcm') {
+    const token = extractFcmToken(subscription)
+    if (!token) {
+      const error = new Error('Некорректный FCM-токен')
+      error.status = 400
+      throw error
+    }
+    const endpoint = fcmEndpoint(token)
+    const store = await readStore()
+    const now = new Date().toISOString()
+    const index = store.subscriptions.findIndex((row) => row.endpoint === endpoint)
+    const row = {
+      id: index >= 0 ? store.subscriptions[index].id : randomUUID(),
+      audience: 'customer',
+      channel: 'fcm',
+      counterpartyId: cpId,
+      counterpartyName: String(counterpartyName || '').trim(),
+      endpoint,
+      token,
+      createdAt: index >= 0 ? store.subscriptions[index].createdAt : now,
+      updatedAt: now,
+    }
+    if (index >= 0) store.subscriptions[index] = row
+    else store.subscriptions.push(row)
+    await writeStore(store)
+    return row
+  }
+
+  const endpoint = subscriptionEndpoint(subscription)
+  const keys = normalizeKeys(subscription)
   if (!endpoint || !keys) {
     const error = new Error('Некорректная push-подписка')
     error.status = 400
@@ -127,6 +212,7 @@ export async function upsertPushSubscription({
   const row = {
     id: index >= 0 ? store.subscriptions[index].id : randomUUID(),
     audience: 'customer',
+    channel: 'web',
     counterpartyId: cpId,
     counterpartyName: String(counterpartyName || '').trim(),
     endpoint,
@@ -158,11 +244,25 @@ export async function removePushSubscription(endpoint) {
   return removed
 }
 
+export async function removePushSubscriptionByToken(token) {
+  const normalized = String(token || '').trim()
+  if (!normalized) return 0
+  return removePushSubscription(fcmEndpoint(normalized))
+}
+
 export async function listAdminPushSubscriptions() {
   const store = await readStore()
   return store.subscriptions
     .filter((row) => rowAudience(row) === 'admin')
     .map((row) => toWebPushSubscription(row))
+    .filter(Boolean)
+}
+
+export async function listAdminFcmTokens() {
+  const store = await readStore()
+  return store.subscriptions
+    .filter((row) => rowAudience(row) === 'admin' && rowChannel(row) === 'fcm')
+    .map((row) => String(row.token || extractFcmToken(row) || '').trim())
     .filter(Boolean)
 }
 
@@ -172,8 +272,25 @@ export async function listPushSubscriptionsForCounterparty(counterpartyId) {
   const store = await readStore()
   return store.subscriptions
     .filter((row) => rowAudience(row) === 'customer' && row.counterpartyId === cpId)
-    .map((row) => ({ ...toWebPushSubscription(row), id: row.id }))
-    .filter((row) => row.endpoint)
+    .map((row) => {
+      const web = toWebPushSubscription(row)
+      if (web) return web
+      if (rowChannel(row) === 'fcm') {
+        const token = String(row.token || extractFcmToken(row) || '').trim()
+        if (!token) return null
+        return { channel: 'fcm', token, id: row.id, endpoint: row.endpoint }
+      }
+      return null
+    })
+    .filter(Boolean)
+}
+
+export async function listCustomerFcmTokens(counterpartyId) {
+  const rows = await listPushSubscriptionsForCounterparty(counterpartyId)
+  return rows
+    .filter((row) => row.channel === 'fcm' || row.token)
+    .map((row) => String(row.token || '').trim())
+    .filter(Boolean)
 }
 
 export async function removePushSubscriptionById(id) {
