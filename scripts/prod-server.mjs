@@ -38,6 +38,7 @@ const NO_CACHE_FILES = new Set([
   '/manifest.webmanifest',
   '/manifest-admin.webmanifest',
   '/catalog.json',
+  '/app-config.json',
 ])
 
 const COMPRESSIBLE = new Set([

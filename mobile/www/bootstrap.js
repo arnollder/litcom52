@@ -108,7 +108,10 @@ async function fetchConfig(url) {
   const controller = new AbortController()
   const timer = window.setTimeout(() => controller.abort(), 8000)
   try {
-    const response = await fetch(url, {
+    // Bust WebView disk cache (litkom used to serve app-config as immutable).
+    const bust = new URL(url)
+    bust.searchParams.set('_', String(Date.now()))
+    const response = await fetch(bust.toString(), {
       method: 'GET',
       cache: 'no-store',
       signal: controller.signal,
