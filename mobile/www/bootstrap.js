@@ -23,6 +23,10 @@ const ADMIN_MODE_KEY = 'litcom52.adminMode'
 const ADMIN_TOKEN_KEY = 'litcom52.adminToken'
 const ADMIN_TAP_TARGET = 7
 const ADMIN_TAP_WINDOW_MS = 3000
+/** Keep HTML splash visible long enough to start the 7-tap admin sequence. */
+const MIN_SPLASH_MS = 3000
+
+const bootStartedAt = Date.now()
 
 const statusEl = document.getElementById('status')
 const retryBtn = document.getElementById('retry')
@@ -312,6 +316,15 @@ async function startUpdateDownload() {
   window.location.href = pendingApkUrl
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function waitMinSplash() {
+  const left = MIN_SPLASH_MS - (Date.now() - bootStartedAt)
+  if (left > 0) await sleep(left)
+}
+
 async function openService({ skipUpdateCheck = false, skipAdminSession = false } = {}) {
   if (adminMode) return
 
@@ -336,6 +349,11 @@ async function openService({ skipUpdateCheck = false, skipAdminSession = false }
         return
       }
     }
+
+    // Config is fast — without a floor the green «Л» flash is ~200ms and untappable.
+    setStatus('Коснись логотипа для админки…')
+    await waitMinSplash()
+    if (bootAborted || adminMode || updateMode) return
 
     if (!skipAdminSession) {
       const session = await readAdminSession()
