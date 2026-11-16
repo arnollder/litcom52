@@ -22,7 +22,7 @@ const CACHE_KEY = 'litcom52.mobile.webUrl'
 const ADMIN_MODE_KEY = 'litcom52.adminMode'
 const ADMIN_TOKEN_KEY = 'litcom52.adminToken'
 const ADMIN_TAP_TARGET = 7
-const ADMIN_TAP_WINDOW_MS = 2500
+const ADMIN_TAP_WINDOW_MS = 3000
 
 const statusEl = document.getElementById('status')
 const retryBtn = document.getElementById('retry')
