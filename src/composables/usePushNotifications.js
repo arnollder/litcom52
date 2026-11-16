@@ -18,7 +18,11 @@ const subscribedEndpoint = ref('')
 const isLoading = ref(false)
 const error = ref('')
 const permission = ref(
-  typeof Notification !== 'undefined' ? Notification.permission : 'default',
+  typeof window !== 'undefined' &&
+    typeof Notification !== 'undefined' &&
+    !isCapacitorPushAvailable()
+    ? Notification.permission
+    : 'default',
 )
 
 let registrationPromise = null
@@ -72,14 +76,12 @@ export function usePushNotifications() {
   const savedCounterparty = useSavedCounterparty()
   const isSupported = computed(() => detectSupported())
   const isSubscribed = computed(() => Boolean(subscribedEndpoint.value))
-  const canEnable = computed(
-    () =>
-      isSupported.value &&
-      Boolean(savedCounterparty.value?.token) &&
-      permission.value !== 'denied' &&
-      !isSubscribed.value &&
-      !isLoading.value,
-  )
+  const canEnable = computed(() => {
+    if (!isSupported.value || isSubscribed.value || isLoading.value) return false
+    if (!savedCounterparty.value?.token) return false
+    if (isCapacitorPushAvailable()) return true
+    return permission.value !== 'denied'
+  })
   const canDisable = computed(
     () => isSupported.value && isSubscribed.value && !isLoading.value,
   )
@@ -87,6 +89,7 @@ export function usePushNotifications() {
     () =>
       isSupported.value &&
       Boolean(savedCounterparty.value?.token) &&
+      !isCapacitorPushAvailable() &&
       permission.value === 'denied' &&
       !isLoading.value,
   )

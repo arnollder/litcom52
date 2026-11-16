@@ -47,6 +47,10 @@ const canToggle = computed(() => {
       adminPush.canEnable.value || adminPush.canDisable.value || adminPush.canRetryDenied.value
     )
   }
+  // Без токена группы кнопка всё равно кликабельна — покажем ошибку/подсказку.
+  if (isCapacitorNative() && customerPush.isSupported.value && !savedCounterparty.value?.token) {
+    return !customerPush.isLoading.value
+  }
   return (
     customerPush.canEnable.value ||
     customerPush.canDisable.value ||
@@ -83,6 +87,11 @@ async function toggle() {
   if (isAdmin.value) {
     if (adminPush.enabled.value) await adminPush.disable()
     else await adminPush.enable()
+    return
+  }
+  if (!savedCounterparty.value?.token) {
+    customerPush.error.value =
+      'Сначала откройте «Мои заказы» и войдите токеном группы — потом включите пуш.'
     return
   }
   if (customerPush.isSubscribed.value) await customerPush.disableNotifications()
@@ -216,8 +225,8 @@ onMounted(() => {
 }
 
 .push-toggle:disabled {
-  opacity: 0.6;
-  cursor: wait;
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .push-toggle__icon-wrap {

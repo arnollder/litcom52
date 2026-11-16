@@ -16,7 +16,15 @@ const PUSH_ENABLED_KEY = 'litcom52-admin-push-enabled'
 
 const supported = ref(false)
 const enabled = ref(false)
-const permission = ref(typeof Notification !== 'undefined' ? Notification.permission : 'default')
+// В Android WebView Notification.permission часто сразу "denied", хотя FCM живой.
+// Для Capacitor не читаем web-permission как истину.
+const permission = ref(
+  typeof window !== 'undefined' &&
+    typeof Notification !== 'undefined' &&
+    !isCapacitorPushAvailable()
+    ? Notification.permission
+    : 'default',
+)
 const busy = ref(false)
 const error = ref('')
 
@@ -70,12 +78,19 @@ export function useAdminPush() {
       ? Boolean(readStoredFcmToken())
       : permission.value === 'granted')
 
-  const canEnable = computed(
-    () => supported.value && permission.value !== 'denied' && !enabled.value && !busy.value,
-  )
+  const canEnable = computed(() => {
+    if (!supported.value || enabled.value || busy.value) return false
+    // FCM: системный диалог Android, web Notification.permission не блокируем.
+    if (isCapacitorPushAvailable()) return true
+    return permission.value !== 'denied'
+  })
   const canDisable = computed(() => supported.value && enabled.value && !busy.value)
   const canRetryDenied = computed(
-    () => supported.value && permission.value === 'denied' && !busy.value,
+    () =>
+      supported.value &&
+      !isCapacitorPushAvailable() &&
+      permission.value === 'denied' &&
+      !busy.value,
   )
 
   async function enableWeb() {

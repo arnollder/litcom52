@@ -1,44 +1,42 @@
-import { Capacitor } from '@capacitor/core'
-import { App } from '@capacitor/app'
-import { Browser } from '@capacitor/browser'
-import { Preferences } from '@capacitor/preferences'
-import { PushNotifications } from '@capacitor/push-notifications'
-
 /**
- * Importing plugin modules registers them with the native bridge.
- * Required when the Vue app loads from https://… inside the Capacitor WebView
- * (window.Capacitor.Plugins alone is often empty on remote origins).
+ * Capacitor bridge for the APK WebView.
+ *
+ * Do NOT import @capacitor/* packages into the Vite bundle: that registers
+ * web stubs and yields "plugin is not implemented on web" inside the native
+ * WebView. Use the bridge injected by the Android WebView instead.
  */
-const PLUGIN_MAP = {
-  App,
-  Browser,
-  Preferences,
-  PushNotifications,
-}
 
-/** True inside Capacitor Android/iOS WebView. */
+/** True inside Capacitor Android/iOS WebView (native bridge present). */
 export function isCapacitorNative() {
   if (typeof window === 'undefined') return false
   try {
-    return Boolean(Capacitor.isNativePlatform())
+    const cap = window.Capacitor
+    if (!cap) return false
+    if (typeof cap.isNativePlatform === 'function') return Boolean(cap.isNativePlatform())
+    const platform = typeof cap.getPlatform === 'function' ? cap.getPlatform() : ''
+    return platform === 'android' || platform === 'ios'
   } catch {
     return false
+  }
+}
+
+export function getCapacitorPlatform() {
+  try {
+    return window.Capacitor?.getPlatform?.() || 'web'
+  } catch {
+    return 'web'
   }
 }
 
 export function getCapacitorPlugin(name) {
   if (!isCapacitorNative()) return null
   try {
-    return PLUGIN_MAP[name] || Capacitor.Plugins?.[name] || null
+    const cap = window.Capacitor
+    if (typeof cap?.isPluginAvailable === 'function' && !cap.isPluginAvailable(name)) {
+      return null
+    }
+    return cap?.Plugins?.[name] || null
   } catch {
     return null
-  }
-}
-
-export function getCapacitorPlatform() {
-  try {
-    return Capacitor.getPlatform()
-  } catch {
-    return 'web'
   }
 }

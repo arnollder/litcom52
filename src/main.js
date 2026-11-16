@@ -4,8 +4,6 @@ import App from './App.vue'
 import router from './router'
 import { useThemeStore } from './stores/theme'
 import { registerServiceWorker } from './composables/usePwaInstall'
-// Register Capacitor plugins for the APK WebView (remote https origin).
-import './utils/capacitor.js'
 import './styles/main.css'
 
 const app = createApp(App)

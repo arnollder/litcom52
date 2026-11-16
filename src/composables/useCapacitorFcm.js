@@ -7,7 +7,9 @@ let listenersAttached = false
 const tokenWaiters = []
 
 export function isCapacitorPushAvailable() {
-  return isCapacitorNative() && Boolean(getCapacitorPlugin('PushNotifications'))
+  if (!isCapacitorNative()) return false
+  const Push = getCapacitorPlugin('PushNotifications')
+  return Boolean(Push?.requestPermissions && Push?.register)
 }
 
 export function readStoredFcmToken() {
@@ -83,7 +85,11 @@ function waitForToken(timeoutMs) {
  */
 export async function registerCapacitorFcmToken({ timeoutMs = 20000 } = {}) {
   const Push = getCapacitorPlugin('PushNotifications')
-  if (!Push) throw new Error('PushNotifications недоступны в этом WebView')
+  if (!Push?.requestPermissions || !Push?.register) {
+    throw new Error(
+      'Push в этом APK недоступен. Обнови приложение до последней версии (нужен FCM-плагин).',
+    )
+  }
 
   const perm = await Push.requestPermissions()
   const receive = String(perm?.receive || '').toLowerCase()
